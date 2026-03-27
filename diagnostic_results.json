@@ -1,0 +1,435 @@
+[
+  {
+    "filename": "blank_page.png",
+    "label": "forged",
+    "dis_score": 1.0,
+    "risk_level": "AUTHENTIC",
+    "visual_score": 1.0,
+    "text_score": 1.0,
+    "metadata_score": 0.5,
+    "forgery_type": "none",
+    "findings": {
+      "Text Forensics Agent": [],
+      "Metadata & Provenance Agent": [],
+      "Visual Tamper Agent": []
+    }
+  },
+  {
+    "filename": "forged_certificate.jpg",
+    "label": "forged",
+    "dis_score": 0.6,
+    "risk_level": "MEDIUM RISK",
+    "visual_score": 0.45,
+    "text_score": 0.9333,
+    "metadata_score": 0.5,
+    "forgery_type": "jpeg_recompression",
+    "findings": {
+      "Metadata & Provenance Agent": [],
+      "Text Forensics Agent": [
+        {
+          "desc": "OCR confidence anomaly: 1 words with significantly lower confidence (mean: 92.1, anomalous words: CS-2ZUZ6-UU1). Found 1 spatial cluster(s).",
+          "severity": 0.16666666666666666
+        }
+      ],
+      "Visual Tamper Agent": [
+        {
+          "desc": "ELA block variance: CV=2.75, 3 outlier blocks of 77. Localized ELA anomaly suggests region-level tampering.",
+          "severity": 0.8
+        },
+        {
+          "desc": "Largest ELA anomaly region at (64,64) size 2352x3376",
+          "severity": 0.03732482436458602
+        },
+        {
+          "desc": "Strong double compression signal: JPEG block boundary ratios H=2.55, V=0.31 (expected ~1.0)",
+          "severity": 0.7
+        },
+        {
+          "desc": "Minor noise inconsistency: 71/2052 blocks anomalous (3.5%)",
+          "severity": 0.10380116959064327
+        }
+      ]
+    }
+  },
+  {
+    "filename": "forged_certificate.png",
+    "label": "forged",
+    "dis_score": 0.6,
+    "risk_level": "MEDIUM RISK",
+    "visual_score": 0.45,
+    "text_score": 0.9333,
+    "metadata_score": 0.5,
+    "forgery_type": "jpeg_recompression",
+    "findings": {
+      "Metadata & Provenance Agent": [],
+      "Text Forensics Agent": [
+        {
+          "desc": "OCR confidence anomaly: 1 words with significantly lower confidence (mean: 91.4, anomalous words: CS-ZUZ6-UU). Found 1 spatial cluster(s).",
+          "severity": 0.16666666666666666
+        }
+      ],
+      "Visual Tamper Agent": [
+        {
+          "desc": "ELA block variance: CV=2.99, 3 outlier blocks of 77. Localized ELA anomaly suggests region-level tampering.",
+          "severity": 0.8
+        },
+        {
+          "desc": "Largest ELA anomaly region at (51,48) size 2381x3416",
+          "severity": 0.02276248758597859
+        },
+        {
+          "desc": "Strong double compression signal: JPEG block boundary ratios H=2.99, V=0.26 (expected ~1.0)",
+          "severity": 0.7
+        },
+        {
+          "desc": "Minor noise inconsistency: 71/2052 blocks anomalous (3.5%)",
+          "severity": 0.10380116959064327
+        }
+      ]
+    }
+  },
+  {
+    "filename": "tiny_image.png",
+    "label": "forged",
+    "dis_score": 0.6,
+    "risk_level": "MEDIUM RISK",
+    "visual_score": 0.4936,
+    "text_score": 1.0,
+    "metadata_score": 0.5,
+    "forgery_type": "jpeg_recompression",
+    "findings": {
+      "Text Forensics Agent": [],
+      "Metadata & Provenance Agent": [],
+      "Visual Tamper Agent": [
+        {
+          "desc": "Multi-scale ELA: 3.9% of image flagged across 2+ quality levels. Per-scale anomaly ratios: ['4.4%', '5.4%', '5.0%']",
+          "severity": 0.6173
+        },
+        {
+          "desc": "Largest ELA anomaly region at (21,41) size 23x7",
+          "severity": 0.11730000000000002
+        },
+        {
+          "desc": "Unusual JPEG block patterns: H=2.45, V=1.42",
+          "severity": 0.3
+        }
+      ]
+    }
+  },
+  {
+    "filename": "WhatsApp Image 2026-03-27 at 11.53.21 AM.jpeg",
+    "label": "forged",
+    "dis_score": 0.4893,
+    "risk_level": "MEDIUM RISK",
+    "visual_score": 0.3,
+    "text_score": 0.7103,
+    "metadata_score": 0.5,
+    "forgery_type": "jpeg_recompression",
+    "findings": {
+      "Metadata & Provenance Agent": [],
+      "Text Forensics Agent": [
+        {
+          "desc": "Baseline misalignment detected in 21 of 42 text lines. Worst deviation: 14.6px (character height: 21px)",
+          "severity": 1.0
+        },
+        {
+          "desc": "Character spacing anomaly: 5 irregular gaps detected across 42 text lines",
+          "severity": 0.14534883720930233
+        },
+        {
+          "desc": "Background inconsistency: 9 text regions have different background intensity (expected ~255, std: 0.5)",
+          "severity": 0.2102803738317757
+        }
+      ],
+      "Visual Tamper Agent": [
+        {
+          "desc": "Multi-scale ELA: 4.3% of image flagged across 2+ quality levels. Per-scale anomaly ratios: ['6.4%', '6.0%', '5.5%']",
+          "severity": 0.6280114109322974
+        },
+        {
+          "desc": "Largest ELA anomaly region at (169,276) size 87x22",
+          "severity": 0.12801141093229745
+        },
+        {
+          "desc": "Copy-move detected: 109 clustered matches (of 542 total), displacement (400, 0)px, consistency: 20%",
+          "severity": 0.8
+        }
+      ]
+    }
+  },
+  {
+    "filename": "WhatsApp Image 2026-03-27 at 11.53.31 AM (1).jpeg",
+    "label": "forged",
+    "dis_score": 0.5041,
+    "risk_level": "MEDIUM RISK",
+    "visual_score": 0.45,
+    "text_score": 0.7676,
+    "metadata_score": 0.5,
+    "forgery_type": "jpeg_recompression",
+    "findings": {
+      "Metadata & Provenance Agent": [],
+      "Text Forensics Agent": [
+        {
+          "desc": "Baseline misalignment detected in 6 of 16 text lines. Worst deviation: 13.8px (character height: 20px)",
+          "severity": 1.0
+        },
+        {
+          "desc": "Font size inconsistency: body text height varies by 31.5% (mean: 12px, std: 3.8px)",
+          "severity": 0.9445220294677282
+        }
+      ],
+      "Visual Tamper Agent": [
+        {
+          "desc": "Multi-scale ELA: 4.0% of image flagged across 2+ quality levels. Per-scale anomaly ratios: ['5.0%', '4.4%', '4.5%']",
+          "severity": 0.6188490747383953
+        },
+        {
+          "desc": "ELA block variance: CV=1.55, 7 outlier blocks of 88. Localized ELA anomaly suggests region-level tampering.",
+          "severity": 0.8
+        },
+        {
+          "desc": "Largest ELA anomaly region at (637,620) size 35x37",
+          "severity": 0.11884907473839532
+        },
+        {
+          "desc": "Minor noise inconsistency: 8/234 blocks anomalous (3.4%)",
+          "severity": 0.10256410256410257
+        }
+      ]
+    }
+  },
+  {
+    "filename": "WhatsApp Image 2026-03-27 at 11.53.31 AM.jpeg",
+    "label": "forged",
+    "dis_score": 0.6107,
+    "risk_level": "MEDIUM RISK",
+    "visual_score": 0.5253,
+    "text_score": 0.7009,
+    "metadata_score": 0.5,
+    "forgery_type": "metadata_tampering",
+    "findings": {
+      "Metadata & Provenance Agent": [],
+      "Text Forensics Agent": [
+        {
+          "desc": "Baseline misalignment detected in 29 of 57 text lines. Worst deviation: 14.4px (character height: 24px)",
+          "severity": 1.0
+        },
+        {
+          "desc": "Character spacing anomaly: 16 irregular gaps detected across 57 text lines",
+          "severity": 0.20512820512820512
+        },
+        {
+          "desc": "Background inconsistency: 14 text regions have different background intensity (expected ~254, std: 4.1)",
+          "severity": 0.15659955257270694
+        }
+      ],
+      "Visual Tamper Agent": [
+        {
+          "desc": "Multi-scale ELA: 3.1% of image flagged across 2+ quality levels. Per-scale anomaly ratios: ['5.3%', '5.7%', '5.5%']",
+          "severity": 0.5934994382686849
+        },
+        {
+          "desc": "Largest ELA anomaly region at (831,1248) size 218x2",
+          "severity": 0.09349943826868495
+        },
+        {
+          "desc": "Minor noise inconsistency: 8/304 blocks anomalous (2.6%)",
+          "severity": 0.07894736842105263
+        }
+      ]
+    }
+  },
+  {
+    "filename": "in.gov.uidai-ADHAR-14ebeba3f62ce61f75641cd5a55f47ec (2).pdf",
+    "label": "authentic",
+    "dis_score": 0.5,
+    "risk_level": "MEDIUM RISK",
+    "visual_score": 0.4899,
+    "text_score": 0.5917,
+    "metadata_score": 0.989,
+    "forgery_type": "jpeg_recompression",
+    "findings": {
+      "Metadata & Provenance Agent": [],
+      "Text Forensics Agent": [
+        {
+          "desc": "OCR confidence anomaly: 15 words with significantly lower confidence (mean: 73.1, anomalous words: Gedet, Wf, a), HaAIsH, if). Found 14 spatial cluster(s).",
+          "severity": 0.2884615384615385
+        },
+        {
+          "desc": "Low-confidence text cluster (2 words)",
+          "severity": 0.6
+        },
+        {
+          "desc": "Baseline misalignment detected in 17 of 54 text lines. Worst deviation: 95.9px (character height: 93px)",
+          "severity": 1.0
+        },
+        {
+          "desc": "Character spacing anomaly: 7 irregular gaps detected across 54 text lines",
+          "severity": 0.1699029126213592
+        },
+        {
+          "desc": "Font size inconsistency: body text height varies by 31.5% (mean: 27px, std: 8.4px)",
+          "severity": 0.9462703635472416
+        },
+        {
+          "desc": "Background inconsistency: 3 text regions have different background intensity (expected ~255, std: 1.6)",
+          "severity": 0.057692307692307696
+        }
+      ],
+      "Visual Tamper Agent": [
+        {
+          "desc": "Multi-scale ELA: 3.8% of image flagged across 2+ quality levels. Per-scale anomaly ratios: ['4.4%', '4.9%', '4.7%']",
+          "severity": 0.6149396942424549
+        },
+        {
+          "desc": "ELA block variance: CV=0.84, 4 outlier blocks of 77. Localized ELA anomaly suggests region-level tampering.",
+          "severity": 0.8
+        },
+        {
+          "desc": "Largest ELA anomaly region at (1257,694) size 1088x23",
+          "severity": 0.11493969424245487
+        }
+      ]
+    }
+  },
+  {
+    "filename": "test_certificate.jpg",
+    "label": "authentic",
+    "dis_score": 0.6,
+    "risk_level": "MEDIUM RISK",
+    "visual_score": 0.45,
+    "text_score": 0.8621,
+    "metadata_score": 0.5,
+    "forgery_type": "jpeg_recompression",
+    "findings": {
+      "Metadata & Provenance Agent": [],
+      "Text Forensics Agent": [
+        {
+          "desc": "OCR confidence anomaly: 2 words with significantly lower confidence (mean: 95.6, anomalous words: No:, CS-2026-001). Found 2 spatial cluster(s).",
+          "severity": 0.3448275862068966
+        }
+      ],
+      "Visual Tamper Agent": [
+        {
+          "desc": "ELA block variance: CV=2.82, 4 outlier blocks of 77. Localized ELA anomaly suggests region-level tampering.",
+          "severity": 0.8
+        },
+        {
+          "desc": "Largest ELA anomaly region at (64,64) size 2352x3376",
+          "severity": 0.02328904899400449
+        },
+        {
+          "desc": "Strong double compression signal: JPEG block boundary ratios H=3.11, V=0.25 (expected ~1.0)",
+          "severity": 0.7
+        },
+        {
+          "desc": "Minor noise inconsistency: 68/2052 blocks anomalous (3.3%)",
+          "severity": 0.09941520467836257
+        }
+      ]
+    }
+  },
+  {
+    "filename": "test_certificate.pdf",
+    "label": "authentic",
+    "dis_score": 0.7594,
+    "risk_level": "LOW RISK",
+    "visual_score": 0.45,
+    "text_score": 0.8621,
+    "metadata_score": 0.989,
+    "forgery_type": "jpeg_recompression",
+    "findings": {
+      "Metadata & Provenance Agent": [],
+      "Text Forensics Agent": [
+        {
+          "desc": "OCR confidence anomaly: 2 words with significantly lower confidence (mean: 95.6, anomalous words: No:, CS-2026-001). Found 2 spatial cluster(s).",
+          "severity": 0.3448275862068966
+        }
+      ],
+      "Visual Tamper Agent": [
+        {
+          "desc": "ELA block variance: CV=2.08, 5 outlier blocks of 88. Localized ELA anomaly suggests region-level tampering.",
+          "severity": 0.8
+        },
+        {
+          "desc": "Largest ELA anomaly region at (559,1040) size 220x48",
+          "severity": 0.032862870702171164
+        }
+      ]
+    }
+  },
+  {
+    "filename": "test_certificate.png",
+    "label": "authentic",
+    "dis_score": 0.6,
+    "risk_level": "MEDIUM RISK",
+    "visual_score": 0.45,
+    "text_score": 0.8621,
+    "metadata_score": 0.5,
+    "forgery_type": "jpeg_recompression",
+    "findings": {
+      "Metadata & Provenance Agent": [],
+      "Text Forensics Agent": [
+        {
+          "desc": "OCR confidence anomaly: 2 words with significantly lower confidence (mean: 95.5, anomalous words: No:, CS-2026-001). Found 2 spatial cluster(s).",
+          "severity": 0.3448275862068966
+        }
+      ],
+      "Visual Tamper Agent": [
+        {
+          "desc": "ELA block variance: CV=2.84, 5 outlier blocks of 77. Localized ELA anomaly suggests region-level tampering.",
+          "severity": 0.8
+        },
+        {
+          "desc": "Largest ELA anomaly region at (51,48) size 2381x3416",
+          "severity": 0.021504878250634497
+        },
+        {
+          "desc": "Strong double compression signal: JPEG block boundary ratios H=3.17, V=0.25 (expected ~1.0)",
+          "severity": 0.7
+        },
+        {
+          "desc": "Minor noise inconsistency: 67/2052 blocks anomalous (3.3%)",
+          "severity": 0.097953216374269
+        }
+      ]
+    }
+  },
+  {
+    "filename": "WhatsApp Image 2026-03-27 at 2.54.31 AM.jpeg",
+    "label": "authentic",
+    "dis_score": 0.5633,
+    "risk_level": "MEDIUM RISK",
+    "visual_score": 0.45,
+    "text_score": 0.759,
+    "metadata_score": 0.5,
+    "forgery_type": "jpeg_recompression",
+    "findings": {
+      "Metadata & Provenance Agent": [],
+      "Text Forensics Agent": [
+        {
+          "desc": "Baseline misalignment detected in 26 of 40 text lines. Worst deviation: 10.6px (character height: 15px)",
+          "severity": 1.0
+        },
+        {
+          "desc": "Character spacing anomaly: 5 irregular gaps detected across 40 text lines",
+          "severity": 0.13661202185792348
+        }
+      ],
+      "Visual Tamper Agent": [
+        {
+          "desc": "Multi-scale ELA: 4.0% of image flagged across 2+ quality levels. Per-scale anomaly ratios: ['4.8%', '5.1%', '5.1%']",
+          "severity": 0.6191551082543978
+        },
+        {
+          "desc": "ELA block variance: CV=1.18, 7 outlier blocks of 136. Localized ELA anomaly suggests region-level tampering.",
+          "severity": 0.8
+        },
+        {
+          "desc": "Largest ELA anomaly region at (40,496) size 318x48",
+          "severity": 0.11915510825439782
+        }
+      ]
+    }
+  }
+]

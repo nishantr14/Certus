@@ -1,0 +1,1519 @@
+{
+  "metrics": {
+    "accuracy": 0.8,
+    "precision": 1.0,
+    "recall": 0.8,
+    "f1": 0.888888888888889,
+    "avg_authentic_dis": 0,
+    "avg_forged_dis": 0.6322816968955682
+  },
+  "confusion_matrix": {
+    "tp": 80,
+    "tn": 0,
+    "fp": 0,
+    "fn": 20
+  },
+  "results": [
+    {
+      "file": "data\\synthetic_forged\\forged\\blur_attack_0_4_page-0001_jpg.rf.LQi8KCb2wxCEUD3C7lSC_002.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 920.6130504608154
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\blur_attack_13-2-_page-0001_jpg.rf.dJcAkp37r8OVl6Lsbckm_009.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 873.2073307037354
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\blur_attack_14-__page-0001_jpg.rf.3oWmP9FqEpWHYhqe7Y2Q_001.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.7063,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 1113.142490386963
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\blur_attack_17-1-_page-0001_jpg.rf.MBmp4a0U6kjHZWFQ8zaR_007.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 718.8091278076172
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\blur_attack_27-1-_page-0001_jpg.rf.mCOgmmGW6H9bF9wdzNwN_006.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 752.9511451721191
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\blur_attack_3-1-_page-0001_jpg.rf.GdHyTVnXJxvZv2dJOYJw_005.jpg",
+      "label": "forged",
+      "dis_score": 0.7059348245882681,
+      "risk_level": "LOW RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "authentic",
+      "correct": false,
+      "processing_ms": 753.7589073181152
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\blur_attack_3_png.rf.CthnogULRIDHBPRj56NC_004.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.464
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 591.4251804351807
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\blur_attack_image-34-_png_jpg.rf.qEuLXAZZQOXcgio2zGPI_000.jpg",
+      "label": "forged",
+      "dis_score": 0.7,
+      "risk_level": "LOW RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.7875,
+        "Visual Tamper Agent": 0.5208
+      },
+      "prediction": "authentic",
+      "correct": false,
+      "processing_ms": 1107.1274280548096
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\blur_attack_image_png_jpg.rf.fbDsplVsStojIsCi7S54_008.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.6632,
+        "Visual Tamper Agent": 0.4558
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 1325.2413272857666
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\blur_attack_IMG-20240405-WA0019_jpg.rf.sZGqcZOx4MsIIEcMM5Ut_003.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.6698,
+        "Visual Tamper Agent": 0.462
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 1918.5187816619873
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\brightness_manipulation_0_4_page-0001_jpg.rf.LQi8KCb2wxCEUD3C7lSC_002.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 765.5177116394043
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\brightness_manipulation_13-2-_page-0001_jpg.rf.dJcAkp37r8OVl6Lsbckm_009.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 832.8239917755127
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\brightness_manipulation_14-__page-0001_jpg.rf.3oWmP9FqEpWHYhqe7Y2Q_001.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.7063,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 1244.596004486084
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\brightness_manipulation_17-1-_page-0001_jpg.rf.MBmp4a0U6kjHZWFQ8zaR_007.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 827.8605937957764
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\brightness_manipulation_27-1-_page-0001_jpg.rf.mCOgmmGW6H9bF9wdzNwN_006.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.4908
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 736.3355159759521
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\brightness_manipulation_3-1-_page-0001_jpg.rf.GdHyTVnXJxvZv2dJOYJw_005.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 739.1030788421631
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\brightness_manipulation_3_png.rf.CthnogULRIDHBPRj56NC_004.jpg",
+      "label": "forged",
+      "dis_score": 0.6973477404850674,
+      "risk_level": "LOW RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.5151
+      },
+      "prediction": "authentic",
+      "correct": false,
+      "processing_ms": 617.9001331329346
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\brightness_manipulation_image-34-_png_jpg.rf.qEuLXAZZQOXcgio2zGPI_000.jpg",
+      "label": "forged",
+      "dis_score": 0.6819108702618263,
+      "risk_level": "LOW RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.6923,
+        "Visual Tamper Agent": 0.5165
+      },
+      "prediction": "authentic",
+      "correct": false,
+      "processing_ms": 1236.276626586914
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\brightness_manipulation_image_png_jpg.rf.fbDsplVsStojIsCi7S54_008.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.8,
+        "Visual Tamper Agent": 0.4355
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 1288.4080410003662
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\brightness_manipulation_IMG-20240405-WA0019_jpg.rf.sZGqcZOx4MsIIEcMM5Ut_003.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.6698,
+        "Visual Tamper Agent": 0.4606
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 2246.9656467437744
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\copy_move_0_4_page-0001_jpg.rf.LQi8KCb2wxCEUD3C7lSC_002.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 943.6757564544678
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\copy_move_13-2-_page-0001_jpg.rf.dJcAkp37r8OVl6Lsbckm_009.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 1295.75514793396
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\copy_move_14-__page-0001_jpg.rf.3oWmP9FqEpWHYhqe7Y2Q_001.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.7456,
+        "Visual Tamper Agent": 0.4796
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 1569.9381828308105
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\copy_move_17-1-_page-0001_jpg.rf.MBmp4a0U6kjHZWFQ8zaR_007.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 961.0843658447266
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\copy_move_27-1-_page-0001_jpg.rf.mCOgmmGW6H9bF9wdzNwN_006.jpg",
+      "label": "forged",
+      "dis_score": 0.5261593945093627,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.1893
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 1045.5150604248047
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\copy_move_3-1-_page-0001_jpg.rf.GdHyTVnXJxvZv2dJOYJw_005.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 930.016279220581
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\copy_move_3_png.rf.CthnogULRIDHBPRj56NC_004.jpg",
+      "label": "forged",
+      "dis_score": 0.5122091018064815,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.15
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 779.7770500183105
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\copy_move_image-34-_png_jpg.rf.qEuLXAZZQOXcgio2zGPI_000.jpg",
+      "label": "forged",
+      "dis_score": 0.6841306679888892,
+      "risk_level": "LOW RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.6947,
+        "Visual Tamper Agent": 0.5156
+      },
+      "prediction": "authentic",
+      "correct": false,
+      "processing_ms": 1111.532211303711
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\copy_move_image_png_jpg.rf.fbDsplVsStojIsCi7S54_008.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.8,
+        "Visual Tamper Agent": 0.4432
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 1208.7461948394775
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\copy_move_IMG-20240405-WA0019_jpg.rf.sZGqcZOx4MsIIEcMM5Ut_003.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.6781,
+        "Visual Tamper Agent": 0.4611
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 1803.6320209503174
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\double_compression_0_4_page-0001_jpg.rf.LQi8KCb2wxCEUD3C7lSC_002.jpg",
+      "label": "forged",
+      "dis_score": 0.7641284167096444,
+      "risk_level": "LOW RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.65
+      },
+      "prediction": "authentic",
+      "correct": false,
+      "processing_ms": 805.243968963623
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\double_compression_13-2-_page-0001_jpg.rf.dJcAkp37r8OVl6Lsbckm_009.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 869.7502613067627
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\double_compression_14-__page-0001_jpg.rf.3oWmP9FqEpWHYhqe7Y2Q_001.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.6318,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 1713.7572765350342
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\double_compression_17-1-_page-0001_jpg.rf.MBmp4a0U6kjHZWFQ8zaR_007.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 951.1475563049316
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\double_compression_27-1-_page-0001_jpg.rf.mCOgmmGW6H9bF9wdzNwN_006.jpg",
+      "label": "forged",
+      "dis_score": 0.7661476763845398,
+      "risk_level": "LOW RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.65
+      },
+      "prediction": "authentic",
+      "correct": false,
+      "processing_ms": 821.7594623565674
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\double_compression_3-1-_page-0001_jpg.rf.GdHyTVnXJxvZv2dJOYJw_005.jpg",
+      "label": "forged",
+      "dis_score": 0.7183063141571213,
+      "risk_level": "LOW RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.8,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "authentic",
+      "correct": false,
+      "processing_ms": 1225.1627445220947
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\double_compression_3_png.rf.CthnogULRIDHBPRj56NC_004.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.4555
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 674.1161346435547
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\double_compression_image-34-_png_jpg.rf.qEuLXAZZQOXcgio2zGPI_000.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.6998,
+        "Visual Tamper Agent": 0.4859
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 1214.7064208984375
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\double_compression_image_png_jpg.rf.fbDsplVsStojIsCi7S54_008.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.6214,
+        "Visual Tamper Agent": 0.4528
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 1228.266716003418
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\double_compression_IMG-20240405-WA0019_jpg.rf.sZGqcZOx4MsIIEcMM5Ut_003.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.7167,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 2027.9898643493652
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\metadata_strip_0_4_page-0001_jpg.rf.LQi8KCb2wxCEUD3C7lSC_002.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 867.5227165222168
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\metadata_strip_13-2-_page-0001_jpg.rf.dJcAkp37r8OVl6Lsbckm_009.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 859.5316410064697
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\metadata_strip_14-__page-0001_jpg.rf.3oWmP9FqEpWHYhqe7Y2Q_001.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.7063,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 1224.5876789093018
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\metadata_strip_17-1-_page-0001_jpg.rf.MBmp4a0U6kjHZWFQ8zaR_007.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 883.3513259887695
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\metadata_strip_27-1-_page-0001_jpg.rf.mCOgmmGW6H9bF9wdzNwN_006.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.4901
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 843.102216720581
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\metadata_strip_3-1-_page-0001_jpg.rf.GdHyTVnXJxvZv2dJOYJw_005.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 603.520393371582
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\metadata_strip_3_png.rf.CthnogULRIDHBPRj56NC_004.jpg",
+      "label": "forged",
+      "dis_score": 0.6945220587034059,
+      "risk_level": "LOW RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.5095
+      },
+      "prediction": "authentic",
+      "correct": false,
+      "processing_ms": 426.4228343963623
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\metadata_strip_image-34-_png_jpg.rf.qEuLXAZZQOXcgio2zGPI_000.jpg",
+      "label": "forged",
+      "dis_score": 0.6852772683475965,
+      "risk_level": "LOW RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.6976,
+        "Visual Tamper Agent": 0.518
+      },
+      "prediction": "authentic",
+      "correct": false,
+      "processing_ms": 1003.2603740692139
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\metadata_strip_image_png_jpg.rf.fbDsplVsStojIsCi7S54_008.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.8,
+        "Visual Tamper Agent": 0.4467
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 820.9264278411865
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\metadata_strip_IMG-20240405-WA0019_jpg.rf.sZGqcZOx4MsIIEcMM5Ut_003.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.6698,
+        "Visual Tamper Agent": 0.4582
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 1416.614294052124
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\noise_injection_0_4_page-0001_jpg.rf.LQi8KCb2wxCEUD3C7lSC_002.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 570.6691741943359
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\noise_injection_13-2-_page-0001_jpg.rf.dJcAkp37r8OVl6Lsbckm_009.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 817.7931308746338
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\noise_injection_14-__page-0001_jpg.rf.3oWmP9FqEpWHYhqe7Y2Q_001.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.6667,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 687.6554489135742
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\noise_injection_17-1-_page-0001_jpg.rf.MBmp4a0U6kjHZWFQ8zaR_007.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 581.1941623687744
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\noise_injection_27-1-_page-0001_jpg.rf.mCOgmmGW6H9bF9wdzNwN_006.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 685.5652332305908
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\noise_injection_3-1-_page-0001_jpg.rf.GdHyTVnXJxvZv2dJOYJw_005.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 601.1331081390381
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\noise_injection_3_png.rf.CthnogULRIDHBPRj56NC_004.jpg",
+      "label": "forged",
+      "dis_score": 0.7018087052576856,
+      "risk_level": "LOW RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.5239
+      },
+      "prediction": "authentic",
+      "correct": false,
+      "processing_ms": 511.096715927124
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\noise_injection_image-34-_png_jpg.rf.qEuLXAZZQOXcgio2zGPI_000.jpg",
+      "label": "forged",
+      "dis_score": 0.6856468201941595,
+      "risk_level": "LOW RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.6571,
+        "Visual Tamper Agent": 0.65
+      },
+      "prediction": "authentic",
+      "correct": false,
+      "processing_ms": 913.2583141326904
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\noise_injection_image_png_jpg.rf.fbDsplVsStojIsCi7S54_008.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.7,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 982.8939437866211
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\noise_injection_IMG-20240405-WA0019_jpg.rf.sZGqcZOx4MsIIEcMM5Ut_003.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.6698,
+        "Visual Tamper Agent": 0.4716
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 1613.3792400360107
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\resolution_mismatch_0_4_page-0001_jpg.rf.LQi8KCb2wxCEUD3C7lSC_002.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 667.9472923278809
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\resolution_mismatch_13-2-_page-0001_jpg.rf.dJcAkp37r8OVl6Lsbckm_009.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 657.4234962463379
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\resolution_mismatch_14-__page-0001_jpg.rf.3oWmP9FqEpWHYhqe7Y2Q_001.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.6,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 782.3278903961182
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\resolution_mismatch_17-1-_page-0001_jpg.rf.MBmp4a0U6kjHZWFQ8zaR_007.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 658.4134101867676
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\resolution_mismatch_27-1-_page-0001_jpg.rf.mCOgmmGW6H9bF9wdzNwN_006.jpg",
+      "label": "forged",
+      "dis_score": 0.6894422337343671,
+      "risk_level": "LOW RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.5054
+      },
+      "prediction": "authentic",
+      "correct": false,
+      "processing_ms": 669.4221496582031
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\resolution_mismatch_3-1-_page-0001_jpg.rf.GdHyTVnXJxvZv2dJOYJw_005.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 668.2553291320801
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\resolution_mismatch_3_png.rf.CthnogULRIDHBPRj56NC_004.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.4939
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 650.8686542510986
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\resolution_mismatch_image-34-_png_jpg.rf.qEuLXAZZQOXcgio2zGPI_000.jpg",
+      "label": "forged",
+      "dis_score": 0.6999363360921707,
+      "risk_level": "LOW RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.7221,
+        "Visual Tamper Agent": 0.5222
+      },
+      "prediction": "authentic",
+      "correct": false,
+      "processing_ms": 1155.7590961456299
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\resolution_mismatch_image_png_jpg.rf.fbDsplVsStojIsCi7S54_008.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.8,
+        "Visual Tamper Agent": 0.4468
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 931.2663078308105
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\resolution_mismatch_IMG-20240405-WA0019_jpg.rf.sZGqcZOx4MsIIEcMM5Ut_003.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.6919,
+        "Visual Tamper Agent": 0.4596
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 1348.0405807495117
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\splicing_0_4_page-0001_jpg.rf.LQi8KCb2wxCEUD3C7lSC_002.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 520.4129219055176
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\splicing_13-2-_page-0001_jpg.rf.dJcAkp37r8OVl6Lsbckm_009.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 538.9409065246582
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\splicing_14-__page-0001_jpg.rf.3oWmP9FqEpWHYhqe7Y2Q_001.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.85,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 548.9201545715332
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\splicing_17-1-_page-0001_jpg.rf.MBmp4a0U6kjHZWFQ8zaR_007.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 477.2624969482422
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\splicing_27-1-_page-0001_jpg.rf.mCOgmmGW6H9bF9wdzNwN_006.jpg",
+      "label": "forged",
+      "dis_score": 0.7641284167096444,
+      "risk_level": "LOW RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.65
+      },
+      "prediction": "authentic",
+      "correct": false,
+      "processing_ms": 525.2127647399902
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\splicing_3-1-_page-0001_jpg.rf.GdHyTVnXJxvZv2dJOYJw_005.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 591.3283824920654
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\splicing_3_png.rf.CthnogULRIDHBPRj56NC_004.jpg",
+      "label": "forged",
+      "dis_score": 0.7,
+      "risk_level": "LOW RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.5012
+      },
+      "prediction": "authentic",
+      "correct": false,
+      "processing_ms": 383.2268714904785
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\splicing_image-34-_png_jpg.rf.qEuLXAZZQOXcgio2zGPI_000.jpg",
+      "label": "forged",
+      "dis_score": 0.672157212200393,
+      "risk_level": "LOW RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.6759,
+        "Visual Tamper Agent": 0.519
+      },
+      "prediction": "authentic",
+      "correct": false,
+      "processing_ms": 853.9812564849854
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\splicing_image_png_jpg.rf.fbDsplVsStojIsCi7S54_008.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.8,
+        "Visual Tamper Agent": 0.4467
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 911.6711616516113
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\splicing_IMG-20240405-WA0019_jpg.rf.sZGqcZOx4MsIIEcMM5Ut_003.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.8,
+        "Visual Tamper Agent": 0.4705
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 1430.9957027435303
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\text_replacement_0_4_page-0001_jpg.rf.LQi8KCb2wxCEUD3C7lSC_002.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 474.5199680328369
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\text_replacement_13-2-_page-0001_jpg.rf.dJcAkp37r8OVl6Lsbckm_009.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 554.5237064361572
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\text_replacement_14-__page-0001_jpg.rf.3oWmP9FqEpWHYhqe7Y2Q_001.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.6929,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 552.5298118591309
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\text_replacement_17-1-_page-0001_jpg.rf.MBmp4a0U6kjHZWFQ8zaR_007.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 491.38665199279785
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\text_replacement_27-1-_page-0001_jpg.rf.mCOgmmGW6H9bF9wdzNwN_006.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 551.5477657318115
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\text_replacement_3-1-_page-0001_jpg.rf.GdHyTVnXJxvZv2dJOYJw_005.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.8,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 568.5458183288574
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\text_replacement_3_png.rf.CthnogULRIDHBPRj56NC_004.jpg",
+      "label": "forged",
+      "dis_score": 0.7,
+      "risk_level": "LOW RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.5236
+      },
+      "prediction": "authentic",
+      "correct": false,
+      "processing_ms": 387.35032081604004
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\text_replacement_image-34-_png_jpg.rf.qEuLXAZZQOXcgio2zGPI_000.jpg",
+      "label": "forged",
+      "dis_score": 0.6848472147165476,
+      "risk_level": "LOW RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.6988,
+        "Visual Tamper Agent": 0.5134
+      },
+      "prediction": "authentic",
+      "correct": false,
+      "processing_ms": 930.048942565918
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\text_replacement_image_png_jpg.rf.fbDsplVsStojIsCi7S54_008.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.8,
+        "Visual Tamper Agent": 0.4434
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 576.6072273254395
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\text_replacement_IMG-20240405-WA0019_jpg.rf.sZGqcZOx4MsIIEcMM5Ut_003.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.7545,
+        "Visual Tamper Agent": 0.4637
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 1300.6906509399414
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\triple_compression_0_4_page-0001_jpg.rf.LQi8KCb2wxCEUD3C7lSC_002.jpg",
+      "label": "forged",
+      "dis_score": 0.7641284167096444,
+      "risk_level": "LOW RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.65
+      },
+      "prediction": "authentic",
+      "correct": false,
+      "processing_ms": 524.2950916290283
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\triple_compression_13-2-_page-0001_jpg.rf.dJcAkp37r8OVl6Lsbckm_009.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 573.0807781219482
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\triple_compression_14-__page-0001_jpg.rf.3oWmP9FqEpWHYhqe7Y2Q_001.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.7,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 853.5387516021729
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\triple_compression_17-1-_page-0001_jpg.rf.MBmp4a0U6kjHZWFQ8zaR_007.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 452.7308940887451
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\triple_compression_27-1-_page-0001_jpg.rf.mCOgmmGW6H9bF9wdzNwN_006.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 464.04051780700684
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\triple_compression_3-1-_page-0001_jpg.rf.GdHyTVnXJxvZv2dJOYJw_005.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 500.73766708374023
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\triple_compression_3_png.rf.CthnogULRIDHBPRj56NC_004.jpg",
+      "label": "forged",
+      "dis_score": 0.63,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Text Forensics Agent": 1.0,
+        "Metadata & Provenance Agent": 0.824,
+        "Visual Tamper Agent": 0.4842
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 427.32977867126465
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\triple_compression_image-34-_png_jpg.rf.qEuLXAZZQOXcgio2zGPI_000.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.6667,
+        "Visual Tamper Agent": 0.4687
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 910.071849822998
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\triple_compression_image_png_jpg.rf.fbDsplVsStojIsCi7S54_008.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.6576,
+        "Visual Tamper Agent": 0.4617
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 1135.1978778839111
+    },
+    {
+      "file": "data\\synthetic_forged\\forged\\triple_compression_IMG-20240405-WA0019_jpg.rf.sZGqcZOx4MsIIEcMM5Ut_003.jpg",
+      "label": "forged",
+      "dis_score": 0.6,
+      "risk_level": "MEDIUM RISK",
+      "forgery_type": "jpeg_recompression",
+      "agent_scores": {
+        "Metadata & Provenance Agent": 0.824,
+        "Text Forensics Agent": 0.8,
+        "Visual Tamper Agent": 0.45
+      },
+      "prediction": "forged",
+      "correct": true,
+      "processing_ms": 1366.7597770690918
+    }
+  ],
+  "errors": []
+}
