@@ -200,7 +200,9 @@ class MetadataAgent(BaseAgent):
         combined = f"{tool_lower} {producer}"
 
         if not tool:
-            return 0.8, findings  # Missing tool isn't itself suspicious
+            # Missing tool is mildly suspicious for PDFs, neutral for images
+            is_image = document.metadata.get("source") == "image"
+            return (0.75 if is_image else 0.70), findings
 
         # Classify the tool
         is_editing_tool = any(t in combined for t in EDITING_TOOLS)
@@ -380,8 +382,13 @@ class MetadataAgent(BaseAgent):
                         ),
                         severity=0.3,
                     ))
-                    return 0.75, findings
-                return 0.9, findings
+                    return 0.70, findings
+                # No EXIF and no tool — suspicious for non-WhatsApp images
+                findings.append(AgentFinding(
+                    description="Image has no EXIF data and no creation tool metadata.",
+                    severity=0.2,
+                ))
+                return 0.75, findings
 
             # Check for inconsistent EXIF
             if "Make" in exif and "Model" in exif:

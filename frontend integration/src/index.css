@@ -1,0 +1,95 @@
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,700;1,6..72,400&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background: #060608;
+    color: #e8e8ec;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  ::selection {
+    background: rgba(224, 62, 74, 0.2);
+    color: #ff6b6b;
+  }
+}
+
+@layer components {
+  .glass {
+    background: rgba(26, 26, 32, 0.5);
+    backdrop-filter: blur(32px);
+    -webkit-backdrop-filter: blur(32px);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+  }
+
+  /* Sphere breathing glow */
+  @keyframes sphere-breathe {
+    0%, 100% {
+      box-shadow:
+        0 0 80px 20px rgba(224, 62, 74, 0.06),
+        0 0 160px 50px rgba(224, 62, 74, 0.02);
+    }
+    50% {
+      box-shadow:
+        0 0 110px 35px rgba(224, 62, 74, 0.10),
+        0 0 200px 70px rgba(224, 62, 74, 0.04);
+    }
+  }
+  .sphere-breathe { animation: sphere-breathe 4s ease-in-out infinite; }
+
+  /* Laser sweep — horizontal scan line */
+  @keyframes laser-sweep {
+    0%   { top: -2px; opacity: 0; }
+    5%   { opacity: 1; }
+    95%  { opacity: 1; }
+    100% { top: calc(100% + 2px); opacity: 0; }
+  }
+  .laser-active::before {
+    content: '';
+    position: absolute;
+    left: -20%;
+    right: -20%;
+    height: 2px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(224, 62, 74, 0.0) 15%,
+      rgba(224, 62, 74, 0.5) 40%,
+      rgba(255, 107, 107, 0.8) 50%,
+      rgba(224, 62, 74, 0.5) 60%,
+      rgba(224, 62, 74, 0.0) 85%,
+      transparent 100%
+    );
+    box-shadow: 0 0 12px 2px rgba(224, 62, 74, 0.25);
+    animation: laser-sweep 2.4s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 20;
+  }
+  .laser-active::after {
+    content: '';
+    position: absolute;
+    left: -20%;
+    right: -20%;
+    height: 60px;
+    background: linear-gradient(
+      180deg,
+      rgba(224, 62, 74, 0.04) 0%,
+      transparent 100%
+    );
+    animation: laser-sweep 2.4s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 19;
+  }
+
+  /* Command bar machined edge */
+  .command-bar {
+    background: linear-gradient(180deg, #141418 0%, #0c0c10 100%);
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.02),
+      0 -1px 20px rgba(0, 0, 0, 0.4);
+  }
+}

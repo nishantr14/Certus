@@ -8,6 +8,7 @@ Generates a professional PDF report using reportlab with:
 - Heatmap overlay image if available
 - Recommended action
 """
+import html
 import io
 import tempfile
 from pathlib import Path
@@ -101,7 +102,8 @@ def generate_report(report: ForensicReport, output_path: Optional[str] = None) -
     elements.append(Paragraph("Document Integrity Score", styles["SectionHead"]))
 
     dis_color = _get_risk_color(report.risk_level)
-    risk_text = report.risk_level.value
+    risk_text = html.escape(report.risk_level.value)
+    forgery_text = html.escape(report.primary_forgery_type.value.replace("_", " ").title())
 
     score_data = [
         [
@@ -109,8 +111,7 @@ def generate_report(report: ForensicReport, output_path: Optional[str] = None) -
                        styles["Normal"]),
             Paragraph(
                 f'<font size="14" color="{dis_color}"><b>{risk_text}</b></font><br/>'
-                f'<font size="9">Forgery type: '
-                f'{report.primary_forgery_type.value.replace("_", " ").title()}</font>',
+                f'<font size="9">Forgery type: {forgery_text}</font>',
                 styles["Normal"],
             ),
         ]
@@ -136,9 +137,10 @@ def generate_report(report: ForensicReport, output_path: Optional[str] = None) -
             "#ed8936" if result.score < 0.7 else "#48bb78"
         )
 
+        safe_name = html.escape(result.agent_name)
         agent_header = [
             [
-                Paragraph(f'<b>{result.agent_name}</b>', styles["Normal"]),
+                Paragraph(f'<b>{safe_name}</b>', styles["Normal"]),
                 Paragraph(
                     f'<font color="{agent_color}"><b>Score: {result.score:.2f}</b></font> '
                     f'| Reliability: {result.reliability_weight:.2f} '
@@ -161,8 +163,9 @@ def generate_report(report: ForensicReport, output_path: Optional[str] = None) -
             severity_marker = "!!!" if finding.severity > 0.7 else (
                 "!!" if finding.severity > 0.4 else "!"
             )
+            safe_desc = html.escape(finding.description)
             elements.append(Paragraph(
-                f"{severity_marker} {finding.description}",
+                f"{severity_marker} {safe_desc}",
                 styles["FindingText"],
             ))
 
@@ -202,7 +205,8 @@ def generate_report(report: ForensicReport, output_path: Optional[str] = None) -
 
     # === Recommended Action ===
     elements.append(Paragraph("Recommended Action", styles["SectionHead"]))
-    elements.append(Paragraph(report.recommended_action, styles["Normal"]))
+    safe_action = html.escape(report.recommended_action)
+    elements.append(Paragraph(safe_action, styles["Normal"]))
     elements.append(Spacer(1, 20))
 
     # === Footer ===

@@ -99,7 +99,7 @@ class VisualTamperAgent(BaseAgent):
             # The page score is the LESSER of the weighted avg and
             # (worst_sub + 0.15) — so a strong signal from any method
             # pulls the whole score down with tight coupling.
-            ceiling_from_worst = worst_sub + 0.15
+            ceiling_from_worst = worst_sub + 0.20
             page_score = min(weighted, ceiling_from_worst)
             page_score = max(0.0, min(1.0, page_score))
 
@@ -214,22 +214,22 @@ class VisualTamperAgent(BaseAgent):
                 severity=min(1.0, 0.5 + persistent_2_ratio * 3),
                 page=page_idx
             ))
-        elif max(anomaly_ratios) > 0.08:
+        elif max(anomaly_ratios) > 0.06:
             # Single-scale anomaly — possible but less certain
             worst_q_idx = anomaly_ratios.index(max(anomaly_ratios))
             worst_ratio = anomaly_ratios[worst_q_idx]
-            score = max(0.3, 0.7 - worst_ratio * 3)
+            score = max(0.2, 0.6 - worst_ratio * 4)
             findings.append(AgentFinding(
                 description=(
                     f"ELA anomaly at Q{qualities[worst_q_idx]}: "
                     f"{worst_ratio*100:.1f}% of image affected. "
                     f"Per-scale: {[f'{r*100:.1f}%' for r in anomaly_ratios]}"
                 ),
-                severity=min(1.0, worst_ratio * 4),
+                severity=min(1.0, worst_ratio * 5),
                 page=page_idx
             ))
-        elif max(anomaly_ratios) > 0.04:
-            score = max(0.5, 0.85 - max(anomaly_ratios) * 3)
+        elif max(anomaly_ratios) > 0.03:
+            score = max(0.45, 0.80 - max(anomaly_ratios) * 4)
         else:
             score = min(1.0, 0.90 + (1.0 - max(anomaly_ratios)) * 0.10)
 
@@ -250,10 +250,17 @@ class VisualTamperAgent(BaseAgent):
             bm_std = float(np.std(bm_arr))
             if bm_mean > 0 and bm_std > 0:
                 cv_ela = bm_std / bm_mean  # Coefficient of variation
-                outlier_blocks = int(np.sum(bm_arr > bm_mean + 2.0 * bm_std))
-                if cv_ela > 0.60 and outlier_blocks >= 2:
+                # Use 2.5 sigma for outlier detection — 2.0 is too sensitive
+                # for documents with high contrast (text on blank background)
+                outlier_blocks = int(np.sum(bm_arr > bm_mean + 2.5 * bm_std))
+                # Also require minimum absolute ELA level — blocks with very low
+                # ELA mean the image is clean, high CV is just noise
+                min_ela_for_concern = 3.0
+                if bm_mean < min_ela_for_concern:
+                    outlier_blocks = 0  # Low ELA overall = clean image
+                if cv_ela > 0.50 and outlier_blocks >= 2:
                     # High block variance with multiple outliers = localized tampering
-                    block_penalty = min(score, max(0.30, 0.55 - cv_ela * 0.25))
+                    block_penalty = min(score, max(0.20, 0.45 - cv_ela * 0.30))
                     if block_penalty < score:
                         score = block_penalty
                         findings.append(AgentFinding(
@@ -263,11 +270,11 @@ class VisualTamperAgent(BaseAgent):
                                 f"{len(block_means_q90)}. Localized ELA anomaly "
                                 f"suggests region-level tampering."
                             ),
-                            severity=min(0.8, cv_ela),
+                            severity=min(0.9, cv_ela),
                             page=page_idx
                         ))
-                elif cv_ela > 0.40 and outlier_blocks >= 1:
-                    block_penalty = min(score, max(0.50, 0.70 - cv_ela * 0.20))
+                elif cv_ela > 0.35 and outlier_blocks >= 1:
+                    block_penalty = min(score, max(0.40, 0.60 - cv_ela * 0.25))
                     if block_penalty < score:
                         score = block_penalty
                         findings.append(AgentFinding(
@@ -275,7 +282,7 @@ class VisualTamperAgent(BaseAgent):
                                 f"Moderate ELA block variance: CV={cv_ela:.2f}, "
                                 f"{outlier_blocks} outlier blocks."
                             ),
-                            severity=min(0.5, cv_ela),
+                            severity=min(0.6, cv_ela),
                             page=page_idx
                         ))
 
@@ -359,7 +366,7 @@ class VisualTamperAgent(BaseAgent):
 
         total_suspicious = len(suspicious_pairs)
 
-        if total_suspicious < 5:
+        if total_suspicious < 4:
             return 1.0, findings
 
         # Cluster by displacement vector — TRUE copy-move will show a dominant cluster
@@ -485,6 +492,11 @@ class VisualTamperAgent(BaseAgent):
         findings = []
         score = 1.0
 
+        # Only meaningful for JPEG images — PNGs don't have block artifacts
+        fmt = document.original_format.lower()
+        if fmt in ("png", "bmp", "tiff"):
+            return 1.0, findings
+
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY).astype(np.float64)
         h, w = gray.shape
         h8 = (h // 8) * 8
@@ -516,19 +528,26 @@ class VisualTamperAgent(BaseAgent):
         if mean_h_int > 0 and mean_v_int > 0:
             ratio_h = mean_h_disc / mean_h_int
             ratio_v = mean_v_disc / mean_v_int
+            min_ratio = min(ratio_h, ratio_v)
+            max_ratio = max(ratio_h, ratio_v)
 
-            if ratio_h < 0.7 or ratio_v < 0.7:
-                score = 0.4
+            # Double compression: both axes show low ratios
+            # OR one axis is very low AND the other isn't wildly high (< 2.0)
+            both_low = ratio_h < 0.7 and ratio_v < 0.7
+            one_very_low = min_ratio < 0.5 and max_ratio < 2.0
+
+            if both_low and min_ratio < 0.4:
+                score = 0.3
                 findings.append(AgentFinding(
                     description=(
                         f"Strong double compression signal: JPEG block boundary "
                         f"ratios H={ratio_h:.2f}, V={ratio_v:.2f} (expected ~1.0)"
                     ),
-                    severity=0.7,
+                    severity=0.8,
                     page=page_idx
                 ))
-            elif ratio_h < 0.85 or ratio_v < 0.85:
-                score = 0.6
+            elif one_very_low or (both_low and min_ratio < 0.7):
+                score = 0.50
                 findings.append(AgentFinding(
                     description=(
                         f"Possible double compression: block boundary "
@@ -537,8 +556,6 @@ class VisualTamperAgent(BaseAgent):
                     severity=0.5,
                     page=page_idx
                 ))
-            elif ratio_h > 1.5 or ratio_v > 1.5:
-                score = 0.7
                 findings.append(AgentFinding(
                     description=(
                         f"Unusual JPEG block patterns: H={ratio_h:.2f}, V={ratio_v:.2f}"
@@ -589,19 +606,19 @@ class VisualTamperAgent(BaseAgent):
 
         anomaly_ratio = len(anomalous_blocks) / len(noise_levels)
 
-        if anomaly_ratio > 0.08:
-            score = max(0.1, 0.6 - anomaly_ratio * 5)
+        if anomaly_ratio > 0.05:
+            score = max(0.1, 0.5 - anomaly_ratio * 5)
             findings.append(AgentFinding(
                 description=(
                     f"Noise inconsistency: {len(anomalous_blocks)}/{len(noise_levels)} "
                     f"blocks anomalous ({anomaly_ratio*100:.1f}%). "
                     f"Mean noise: {mean_noise:.1f}, std: {std_noise:.1f}"
                 ),
-                severity=min(1.0, anomaly_ratio * 5),
+                severity=min(1.0, anomaly_ratio * 6),
                 page=page_idx
             ))
-        elif anomaly_ratio > 0.02:
-            score = max(0.4, 0.8 - anomaly_ratio * 5)
+        elif anomaly_ratio > 0.015:
+            score = max(0.35, 0.7 - anomaly_ratio * 6)
             findings.append(AgentFinding(
                 description=(
                     f"Minor noise inconsistency: {len(anomalous_blocks)}/{len(noise_levels)} "

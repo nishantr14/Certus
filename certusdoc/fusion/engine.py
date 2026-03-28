@@ -57,10 +57,12 @@ def compute_dis(
     dis = weighted_sum / weight_sum if weight_sum > 0 else 1.0
     dis = np.clip(dis, 0.0, 1.0)
 
-    # === WhatsApp image note ===
+    # === WhatsApp image handling ===
     # If WhatsApp-compressed, the metadata agent weight is already 0.1,
     # so it won't appear in active_agents (w > 0.1 filter below).
-    # This means missing-metadata penalties won't drag down DIS.
+    # For WhatsApp images, visual agent is the primary signal — if it
+    # flags issues, tighten the DIS more aggressively since WhatsApp
+    # compression already introduces artifacts (the agent accounts for this).
     is_whatsapp = _is_whatsapp_image(document)
 
     # === HARD CEILING RULES ===
@@ -112,26 +114,35 @@ def compute_dis(
 
     ceiling = None
     if len(effective_severe) >= 2:
-        ceiling = 0.35
+        ceiling = 0.30
     elif len(effective_severe) >= 1 and len(effective_flagging) >= 2:
-        ceiling = 0.40
+        ceiling = 0.35
     elif len(effective_flagging) >= 2:
-        ceiling = 0.50
+        # Two agents flagging — strong signal
+        ceiling = 0.45
     elif len(effective_severe) >= 1:
         # One agent with very strong signal
+        ceiling = 0.45
+    elif len(effective_moderate) >= 1 and len(effective_flagging) >= 2:
         ceiling = 0.50
     elif len(effective_moderate) >= 1:
         # One agent with moderate signal (score 0.30-0.50)
-        ceiling = 0.60
-    elif len(effective_flagging) >= 1:
-        # One agent with mild flag (score 0.50-0.60)
-        ceiling = 0.70
+        ceiling = 0.55
 
     if ceiling is not None and dis > ceiling:
         worst = min(active_agents, key=lambda r: r.score)
         logger.info(f"  DIS ceiling {ceiling} applied: {len(flagging_agents)} agent(s) "
                      f"scored <0.6 ({worst.agent_name}: {worst.score:.3f})")
         dis = ceiling
+
+    # WhatsApp: if visual agent flags strong issues, apply extra penalty
+    # Only for clear forgery signals (score < 0.40), not mild JPEG artifacts
+    if is_whatsapp and visual_result and visual_result.score < 0.40:
+        wa_ceiling = min(dis, visual_result.score + 0.10)
+        if wa_ceiling < dis:
+            logger.info(f"  WhatsApp visual penalty: DIS {dis:.3f} → {wa_ceiling:.3f} "
+                         f"(visual={visual_result.score:.3f})")
+            dis = wa_ceiling
 
     # Agent convergence bonus/penalty (applied after ceiling)
     low_score_agents = [r for r, _ in adjusted_results if r.score < 0.5]

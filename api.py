@@ -5,11 +5,16 @@ POST /analyze — accepts a file upload, returns JSON with DIS score,
 risk level, and per-agent results.
 """
 import os
+import io
+import base64
 import time
 import tempfile
 from pathlib import Path
 
+import cv2
+import numpy as np
 from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from certusdoc.pipeline import CertusDocPipeline
@@ -21,8 +26,17 @@ app = FastAPI(
     version="1.0.0",
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Initialize pipeline once at startup
 pipeline: CertusDocPipeline | None = None
+last_report: "ForensicReport | None" = None
 
 
 @app.on_event("startup")
@@ -57,9 +71,31 @@ async def analyze_document(file: UploadFile = File(...)):
         tmp_path = tmp.name
 
     try:
+        global last_report
         start = time.time()
         report = pipeline.analyze(tmp_path)
+        last_report = report
         elapsed = time.time() - start
+
+        # Encode heatmap as base64 PNG if available
+        heatmap_b64 = None
+        if report.fused_heatmap is not None:
+            heatmap_img = report.fused_heatmap
+            if heatmap_img.dtype != np.uint8:
+                heatmap_img = (np.clip(heatmap_img, 0, 1) * 255).astype(np.uint8)
+            colored = cv2.applyColorMap(heatmap_img, cv2.COLORMAP_JET)
+            _, buf = cv2.imencode('.png', colored)
+            heatmap_b64 = base64.b64encode(buf).decode('utf-8')
+
+        # Encode original page thumbnail as base64
+        original_b64 = None
+        if report.document.pages:
+            page0 = report.document.pages[0]
+            h, w = page0.shape[:2]
+            scale = min(600 / w, 600 / h, 1.0)
+            thumb = cv2.resize(page0, (int(w * scale), int(h * scale)))
+            _, buf = cv2.imencode('.jpg', thumb, [cv2.IMWRITE_JPEG_QUALITY, 85])
+            original_b64 = base64.b64encode(buf).decode('utf-8')
 
         result = {
             "file_name": report.document.file_name,
@@ -71,6 +107,8 @@ async def analyze_document(file: UploadFile = File(...)):
             "forgery_type": report.primary_forgery_type.value,
             "recommended_action": report.recommended_action,
             "processing_time_ms": round(report.processing_time_ms, 0),
+            "heatmap_base64": heatmap_b64,
+            "original_base64": original_b64,
             "agents": [
                 {
                     "name": r.agent_name,
@@ -118,10 +156,11 @@ async def analyze_and_report(file: UploadFile = File(...)):
         tmp_path = tmp.name
 
     try:
+        global last_report
         report = pipeline.analyze(tmp_path)
+        last_report = report
         pdf_bytes = generate_report(report)
 
-        import io
         return StreamingResponse(
             io.BytesIO(pdf_bytes),
             media_type="application/pdf",
@@ -133,6 +172,27 @@ async def analyze_and_report(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Report generation failed: {str(e)}")
     finally:
         os.unlink(tmp_path)
+
+
+@app.get("/report/last")
+async def get_last_report():
+    """
+    Generate a PDF report from the most recent analysis (no re-processing).
+    """
+    if last_report is None:
+        raise HTTPException(status_code=404, detail="No analysis has been run yet")
+
+    try:
+        pdf_bytes = generate_report(last_report)
+        return StreamingResponse(
+            io.BytesIO(pdf_bytes),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f"attachment; filename=certusdoc_report_{last_report.document.file_name}.pdf"
+            },
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Report generation failed: {str(e)}")
 
 
 @app.get("/health")
