@@ -90,9 +90,49 @@ def compute_dis(
     # metadata fields present) AND score >= 0.80.
     metadata_confirms_legit = (meta_result and meta_result.score >= 0.80
                                and meta_result.reliability_weight >= 0.60)
+    # Strong metadata confirmation (>= 0.95) indicates government-issued doc
+    # with known tool — this is very strong evidence of legitimacy.
+    metadata_strongly_legit = (meta_result and meta_result.score >= 0.95
+                                and meta_result.reliability_weight >= 0.60)
+    # Government-tool provenance override (>= 0.90): a document provably
+    # created by wkhtmltopdf / DigiLocker / NSDL CANNOT be forged at the
+    # metadata level. Visual anomalies are rendering artifacts, not forgery.
+    metadata_govt_provenance = (meta_result and meta_result.score >= 0.90
+                                and meta_result.reliability_weight >= 0.60)
     text_is_clean = text_result and text_result.score >= 0.75
+    # For very strong metadata, relax text threshold — e-Aadhaars etc. have
+    # complex formatting that legitimately confuses the text agent
+    text_is_acceptable = text_result and text_result.score >= 0.50
+
+    # Check that text agent has no hard forgery indicators (invalid Aadhaar,
+    # QR mismatch, etc.) — needed for the government provenance override.
+    text_has_hard_indicators = False
+    if text_result:
+        for f in text_result.findings:
+            desc = f.description.lower()
+            if any(kw in desc for kw in (
+                "fails verhoeff", "invalid aadhaar", "contradicts ocr",
+                "qr mismatch", "qr code contradicts",
+            )):
+                text_has_hard_indicators = True
+                break
+    # Also check metadata agent findings for QR contradictions
+    if meta_result and not text_has_hard_indicators:
+        for f in meta_result.findings:
+            desc = f.description.lower()
+            if "contradicts ocr" in desc or "qr mismatch" in desc:
+                text_has_hard_indicators = True
+                break
+
     visual_only_flag = (visual_result and visual_result.score < 0.6
                         and metadata_confirms_legit and text_is_clean)
+
+    # Extended cross-agent trust: very strong metadata + acceptable text
+    # should still soften visual false positives (e.g., wkhtmltopdf rendering
+    # artifacts on e-Aadhaar that ManTraNet flags as manipulation)
+    visual_meta_override = (visual_result and visual_result.score < 0.6
+                             and metadata_strongly_legit and text_is_acceptable
+                             and not visual_only_flag)
 
     # If ONLY the visual agent flags and metadata+text agree it's legit,
     # boost the visual score for ceiling calculation (soften its impact).
@@ -100,7 +140,10 @@ def compute_dis(
     effective_moderate = list(moderate_agents)
     effective_severe = list(severe_agents)
 
-    if visual_only_flag:
+    # Government provenance: visual agent is entirely excluded from ceiling logic
+    govt_provenance_active = (metadata_govt_provenance and not text_has_hard_indicators)
+
+    if govt_provenance_active or visual_only_flag or visual_meta_override:
         # Remove visual from the flagging/severity lists for ceiling calc
         effective_flagging = [r for r in flagging_agents
                               if "visual" not in r.agent_name.lower()]
@@ -108,8 +151,14 @@ def compute_dis(
                               if "visual" not in r.agent_name.lower()]
         effective_severe = [r for r in severe_agents
                             if "visual" not in r.agent_name.lower()]
-        logger.info(f"  Cross-agent trust: metadata ({meta_result.score:.2f}) + "
-                     f"text ({text_result.score:.2f}) confirm legitimacy — "
+        if govt_provenance_active:
+            trust_reason = "government provenance (meta≥0.90, no hard text indicators)"
+        elif visual_only_flag:
+            trust_reason = "metadata+text"
+        else:
+            trust_reason = "strong metadata+acceptable text"
+        logger.info(f"  Cross-agent trust ({trust_reason}): "
+                     f"metadata ({meta_result.score:.2f}) confirms legitimacy — "
                      f"visual anomaly ({visual_result.score:.2f}) softened")
 
     ceiling = None
@@ -135,16 +184,73 @@ def compute_dis(
                      f"scored <0.6 ({worst.agent_name}: {worst.score:.3f})")
         dis = ceiling
 
-    # WhatsApp: if visual agent flags strong issues, apply extra penalty
-    # Only for clear forgery signals (score < 0.40), not mild JPEG artifacts
-    if is_whatsapp and visual_result and visual_result.score < 0.40:
-        wa_ceiling = min(dis, visual_result.score + 0.10)
-        if wa_ceiling < dis:
-            logger.info(f"  WhatsApp visual penalty: DIS {dis:.3f} → {wa_ceiling:.3f} "
-                         f"(visual={visual_result.score:.3f})")
-            dis = wa_ceiling
+    # === Government provenance override ===
+    # When metadata agent confirms a known government tool (score >= 0.90)
+    # AND text agent has no hard forgery indicators, visual anomalies are
+    # rendering artifacts (wkhtmltopdf, DigiLocker, NSDL). Floor at 0.75.
+    if metadata_govt_provenance and not text_has_hard_indicators and dis < 0.75:
+        govt_floor = 0.75
+        logger.info(f"  Government provenance override: DIS {dis:.3f} → {govt_floor:.3f} "
+                     f"(metadata={meta_result.score:.2f} confirms govt tool, "
+                     f"no hard text indicators — visual anomalies are rendering artifacts)")
+        dis = govt_floor
 
-    # Agent convergence bonus/penalty (applied after ceiling)
+    # === Strong metadata floor (fallback for edge cases) ===
+    # When metadata STRONGLY confirms legitimacy (>= 0.95, government tool),
+    # visual false positives from ManTraNet/ELA on PDF-rendered docs should
+    # not sink the score below a reasonable floor.
+    elif visual_meta_override and dis < 0.45:
+        meta_floor = 0.45
+        logger.info(f"  Strong metadata floor: DIS {dis:.3f} → {meta_floor:.3f} "
+                     f"(metadata={meta_result.score:.2f} strongly confirms legitimacy)")
+        dis = meta_floor
+
+    # WhatsApp-specific scoring adjustments
+    if is_whatsapp:
+        # WhatsApp compression introduces visual artifacts (ELA/noise anomalies).
+        # If text agent is clean (>= 0.70), trust it more and soften visual.
+        if visual_result and text_result:
+            if text_result.score >= 0.70 and visual_result.score >= 0.45:
+                # Text is clean + visual is only mildly flagging → likely compression
+                # artifacts, not forgery. Ensure DIS stays above 0.60.
+                wa_floor = 0.60
+                if dis < wa_floor:
+                    logger.info(f"  WhatsApp clean floor: DIS {dis:.3f} → {wa_floor:.3f} "
+                                 f"(text={text_result.score:.3f} clean, visual={visual_result.score:.3f} mild)")
+                    dis = wa_floor
+
+        # If visual agent flags STRONG issues (< 0.40), apply extra penalty
+        # — this means ManTraNet or ELA found real tampering, not just artifacts
+        if visual_result and visual_result.score < 0.40:
+            wa_ceiling = min(dis, visual_result.score + 0.10)
+            if wa_ceiling < dis:
+                logger.info(f"  WhatsApp visual penalty: DIS {dis:.3f} → {wa_ceiling:.3f} "
+                             f"(visual={visual_result.score:.3f})")
+                dis = wa_ceiling
+
+    # === EVIDENCE-BASED SCORING ===
+    # Scan all agent findings for hard indicators, soft indicators, and
+    # authentic signals. This complements the score-based ceiling logic
+    # with semantic understanding of what was actually found.
+    dis = _apply_evidence_based_adjustments(
+        dis, agent_results, active_agents,
+        metadata_strongly_legit=bool(metadata_strongly_legit),
+    )
+
+    # Re-apply floors after evidence scoring (evidence penalties may have
+    # dropped DIS below floors that were set earlier)
+    if metadata_govt_provenance and not text_has_hard_indicators and dis < 0.75:
+        logger.info(f"  Government provenance floor re-applied: DIS {dis:.3f} → 0.750")
+        dis = 0.75
+    if is_whatsapp and visual_result and text_result:
+        if text_result.score >= 0.70 and visual_result.score >= 0.45 and dis < 0.60:
+            logger.info(f"  WhatsApp clean floor re-applied: DIS {dis:.3f} → 0.600")
+            dis = 0.60
+    if visual_meta_override and dis < 0.45:
+        logger.info(f"  Strong metadata floor re-applied: DIS {dis:.3f} → 0.450")
+        dis = 0.45
+
+    # Agent convergence bonus/penalty (applied after evidence)
     low_score_agents = [r for r, _ in adjusted_results if r.score < 0.5]
     high_score_agents = [r for r, _ in adjusted_results if r.score > 0.8]
 
@@ -303,13 +409,158 @@ def _apply_dynamic_weights(
                                              "modification_date", "exif",
                                              "embedded_fonts", "producer"]
                                 if meta.get(k))
-                if available <= 1:
-                    weight *= 0.5
+                if available == 0:
+                    # No metadata at all — agent has no real signal, just
+                    # defaults. Reduce weight to near-zero so it doesn't
+                    # pollute the score.
+                    weight *= 0.15
+                    logger.debug(f"Metadata agent weight heavily reduced: zero metadata fields")
+                elif available <= 1:
+                    weight *= 0.35
                     logger.debug(f"Metadata agent weight reduced: sparse metadata ({available} fields)")
 
         adjusted.append((result, float(np.clip(weight, 0.0, 1.0))))
 
+    # === Visual-text disagreement: boost visual when signals conflict ===
+    # When visual agent flags anomalies (< 0.65) but text agent sees nothing
+    # wrong (> 0.85), the visual signal should carry more weight. Visual
+    # anomalies from ManTraNet/ELA are harder to produce as false positives
+    # than clean text (which is trivial to achieve with digital editing).
+    vis_idx = next((i for i, (r, _) in enumerate(adjusted)
+                    if "visual" in r.agent_name.lower()), None)
+    txt_idx = next((i for i, (r, _) in enumerate(adjusted)
+                    if "text" in r.agent_name.lower()), None)
+    if vis_idx is not None and txt_idx is not None:
+        vis_r, vis_w = adjusted[vis_idx]
+        txt_r, txt_w = adjusted[txt_idx]
+        if vis_r.score < 0.70 and txt_r.score > 0.85 and vis_w > 0.1:
+            # Stronger boost when metadata also has no provenance
+            meta_idx = next((i for i, (r, _) in enumerate(adjusted)
+                             if "metadata" in r.agent_name.lower()), None)
+            no_provenance = (meta_idx is not None and adjusted[meta_idx][1] < 0.15)
+            boost = 1.4 if no_provenance else 1.25
+            adjusted[vis_idx] = (vis_r, float(np.clip(vis_w * boost, 0.0, 1.0)))
+            logger.debug(f"Visual-text disagreement: visual weight boosted {vis_w:.2f} → "
+                         f"{vis_w * boost:.2f} (visual={vis_r.score:.2f} flagging, "
+                         f"text={txt_r.score:.2f} clean, provenance={'none' if no_provenance else 'present'})")
+
     return adjusted
+
+
+def _apply_evidence_based_adjustments(
+    dis: float,
+    agent_results: list[AgentResult],
+    active_agents: list[AgentResult],
+    metadata_strongly_legit: bool = False,
+) -> float:
+    """
+    Scan agent findings for evidence-based signals that should override
+    or adjust the weighted DIS.
+
+    Three categories:
+    - Hard indicators: instant DIS cap (e.g., editing tool on govt doc, QR mismatch)
+    - Soft indicators: incremental penalty (e.g., ManTraNet forgery signal, noise anomaly)
+    - Authentic signals: boost DIS toward authentic (e.g., QR validates, govt tool confirmed)
+    """
+    all_findings_text = []
+    for r in agent_results:
+        for f in r.findings:
+            all_findings_text.append(f.description.lower())
+
+    findings_joined = " ".join(all_findings_text)
+
+    # === HARD INDICATORS → instant DIS cap ===
+    hard_cap = None
+
+    # Editing software on government document
+    if "strong forgery indicator" in findings_joined or \
+       "never issued from editing software" in findings_joined:
+        hard_cap = 0.20
+        logger.info("  Evidence: editing tool on govt doc → cap 0.20")
+
+    # QR code contradicts OCR
+    if "contradicts ocr" in findings_joined:
+        cap = 0.15
+        if hard_cap is None or cap < hard_cap:
+            hard_cap = cap
+        logger.info("  Evidence: QR contradicts OCR → cap 0.15")
+
+    # Consumer/mobile tool on government ID
+    if "never by consumer software" in findings_joined or \
+       "never by consumer" in findings_joined:
+        cap = 0.25
+        if hard_cap is None or cap < hard_cap:
+            hard_cap = cap
+        logger.info("  Evidence: consumer tool on govt ID → cap 0.25")
+
+    # ManTraNet strong forgery signal — but NOT when metadata strongly confirms
+    # legitimacy (e.g., wkhtmltopdf-generated e-Aadhaar triggers ManTraNet false
+    # positives due to PDF rendering artifacts)
+    if "strong forgery signal" in findings_joined and "mantranet" in findings_joined:
+        if not metadata_strongly_legit:
+            cap = 0.25
+            if hard_cap is None or cap < hard_cap:
+                hard_cap = cap
+            logger.info("  Evidence: ManTraNet strong forgery → cap 0.25")
+        else:
+            logger.info("  Evidence: ManTraNet strong forgery SKIPPED — metadata strongly confirms legitimacy")
+
+    # Confirmed ELA across all quality levels (same exception for strong metadata)
+    if "confirmed" in findings_joined and "all 3 quality levels" in findings_joined:
+        if not metadata_strongly_legit:
+            cap = 0.30
+            if hard_cap is None or cap < hard_cap:
+                hard_cap = cap
+        logger.info("  Evidence: confirmed multi-scale ELA → cap 0.30")
+
+    if hard_cap is not None and dis > hard_cap:
+        dis = hard_cap
+
+    # === SOFT INDICATORS → incremental penalty ===
+    soft_penalty = 0.0
+
+    # ManTraNet detects manipulation (moderate)
+    if "possible manipulation detected" in findings_joined:
+        soft_penalty += 0.05
+    if "mantranet" in findings_joined and "elevated anomaly" in findings_joined:
+        soft_penalty += 0.04
+    if "mantranet" in findings_joined and "minor anomaly" in findings_joined:
+        soft_penalty += 0.02
+
+    # Verhoeff checksum failure on non-government tool
+    if "fails verhoeff checksum validation" in findings_joined:
+        soft_penalty += 0.08
+
+    # No QR on Aadhaar
+    if "no qr code detected on aadhaar" in findings_joined:
+        soft_penalty += 0.05
+
+    if soft_penalty > 0:
+        dis = max(0.0, dis - soft_penalty)
+        logger.info(f"  Evidence soft penalty: -{soft_penalty:.2f}")
+
+    # === AUTHENTIC SIGNALS → boost toward authentic ===
+    auth_boost = 0.0
+
+    # QR code validates with OCR
+    if "qr code validates" in findings_joined:
+        auth_boost += 0.05
+
+    # WhatsApp image correctly identified (not suspicious)
+    if "messaging app" in findings_joined and "not a forgery indicator" in findings_joined:
+        auth_boost += 0.02
+
+    # Government tool confirmed
+    if any(r.score >= 0.90 for r in active_agents
+           if "metadata" in r.agent_name.lower()):
+        # Metadata agent is very confident → slight boost
+        auth_boost += 0.02
+
+    if auth_boost > 0 and dis < 1.0:
+        dis = min(1.0, dis + auth_boost)
+        logger.info(f"  Evidence auth boost: +{auth_boost:.2f}")
+
+    return dis
 
 
 def _determine_forgery_type(

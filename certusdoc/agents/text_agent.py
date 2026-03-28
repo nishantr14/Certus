@@ -82,13 +82,20 @@ class TextForensicsAgent(BaseAgent):
             )
             all_findings.extend(regional_findings)
 
+            # --- Text Sharpness Consistency ---
+            sharpness_score, sharpness_findings = self._analyze_text_sharpness_consistency(
+                word_data, page_img, page_idx
+            )
+            all_findings.extend(sharpness_findings)
+
             page_score = (
-                0.25 * conf_score
-                + 0.20 * baseline_score
-                + 0.15 * spacing_score
+                0.22 * conf_score
+                + 0.18 * baseline_score
+                + 0.13 * spacing_score
                 + 0.10 * fontsize_score
                 + 0.10 * regularity_score
-                + 0.20 * regional_score
+                + 0.17 * regional_score
+                + 0.10 * sharpness_score
             )
             page_scores.append(page_score)
 
@@ -143,7 +150,13 @@ class TextForensicsAgent(BaseAgent):
             # Check if low-confidence words cluster spatially
             clusters = self._find_spatial_clusters(low_conf_words)
 
-            score = max(0.0, 1.0 - anomaly_ratio * 8)
+            # Graduated penalty: mild for natural variance (<10%), steeper for
+            # clearly anomalous text (>15%). Having a few low-confidence words
+            # on a scanned document is expected and should not heavily penalize.
+            if anomaly_ratio > 0.15:
+                score = max(0.0, 0.6 - anomaly_ratio * 3)
+            else:
+                score = max(0.70, 1.0 - anomaly_ratio * 3)
 
             sample_words = [w["text"] for w in low_conf_words[:5]]
             findings.append(AgentFinding(
@@ -495,6 +508,92 @@ class TextForensicsAgent(BaseAgent):
             ))
 
         return score, findings
+
+    def _analyze_text_sharpness_consistency(
+        self, word_data: list[dict], page_img: np.ndarray, page_idx: int
+    ) -> tuple[float, list[AgentFinding]]:
+        """
+        Detect localized text replacement by comparing per-word edge sharpness.
+
+        When text is digitally placed (e.g., edited in Photoshop), the replaced
+        words often have different anti-aliasing, edge rendering, or compression
+        artifacts compared to the original text. This shows up as sharpness
+        outliers: a cluster of words whose Laplacian variance differs
+        significantly from the document's baseline.
+        """
+        findings = []
+        if len(word_data) < 10:
+            return 1.0, findings
+
+        gray = cv2.cvtColor(page_img, cv2.COLOR_BGR2GRAY)
+        h, w = gray.shape
+
+        # Measure per-word sharpness (Laplacian variance)
+        word_sharpness = []
+        for wd in word_data:
+            x, y, ww, hh = wd["x"], wd["y"], wd["w"], wd["h"]
+            if ww < 5 or hh < 5 or x + ww > w or y + hh > h:
+                continue
+            region = gray[y:y+hh, x:x+ww]
+            if region.size == 0:
+                continue
+            lap_var = float(cv2.Laplacian(region, cv2.CV_64F).var())
+            word_sharpness.append((x, y, ww, hh, lap_var, wd.get("conf", 0)))
+
+        if len(word_sharpness) < 8:
+            return 1.0, findings
+
+        sharpness_vals = np.array([s[4] for s in word_sharpness])
+        median_sharp = float(np.median(sharpness_vals))
+        mad_sharp = float(np.median(np.abs(sharpness_vals - median_sharp)))
+
+        if mad_sharp < 1.0:
+            return 1.0, findings  # Very uniform — no signal
+
+        # Find words whose sharpness deviates from median (MAD-based outliers)
+        threshold = 3.0 * mad_sharp * 1.4826  # MAD to std conversion
+        outlier_words = []
+        for x, y, ww, hh, sv, conf in word_sharpness:
+            if abs(sv - median_sharp) > threshold:
+                outlier_words.append((x, y, ww, hh, sv))
+
+        outlier_ratio = len(outlier_words) / len(word_sharpness)
+
+        # Check if outliers cluster spatially (edited region)
+        if len(outlier_words) >= 3:
+            # Check if they form a spatial cluster
+            xs = [o[0] for o in outlier_words]
+            ys = [o[1] for o in outlier_words]
+            x_spread = max(xs) - min(xs)
+            y_spread = max(ys) - min(ys)
+            is_clustered = (x_spread < w * 0.5 and y_spread < h * 0.4)
+
+            if is_clustered and outlier_ratio > 0.08:
+                score = max(0.25, 0.50 - outlier_ratio * 3)
+                findings.append(AgentFinding(
+                    description=(
+                        f"Text sharpness anomaly: {len(outlier_words)}/{len(word_sharpness)} "
+                        f"words have anomalous edge sharpness, clustered in a "
+                        f"{x_spread}x{y_spread}px region. Indicates localized "
+                        f"text replacement or editing."
+                    ),
+                    severity=min(0.8, outlier_ratio * 5),
+                    page=page_idx,
+                ))
+                return score, findings
+            elif outlier_ratio > 0.10:
+                score = max(0.40, 0.65 - outlier_ratio * 2)
+                findings.append(AgentFinding(
+                    description=(
+                        f"Text sharpness variance: {len(outlier_words)}/{len(word_sharpness)} "
+                        f"words with unusual edge characteristics ({outlier_ratio*100:.1f}%)."
+                    ),
+                    severity=min(0.6, outlier_ratio * 3),
+                    page=page_idx,
+                ))
+                return score, findings
+
+        return 1.0, findings
 
     def _group_into_lines(self, word_data: list[dict]) -> list[list[dict]]:
         """Group words into approximate text lines based on vertical position."""

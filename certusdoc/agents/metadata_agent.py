@@ -12,11 +12,20 @@ This agent catches: metadata spoofing, tool signature inconsistencies, timestamp
 """
 import time
 import re
+import xml.etree.ElementTree as ET
 from datetime import datetime
 from typing import Optional
 
+import cv2
 import numpy as np
 from loguru import logger
+
+try:
+    from pyzbar.pyzbar import decode as decode_qr, ZBarSymbol
+    HAS_PYZBAR = True
+except ImportError:
+    HAS_PYZBAR = False
+    logger.warning("pyzbar not available — QR code verification disabled")
 
 from certusdoc.agents.base import BaseAgent
 from certusdoc.models import Document, AgentResult, AgentFinding
@@ -144,7 +153,12 @@ class MetadataAgent(BaseAgent):
         # --- Indian Document Validation ---
         indian_score, indian_findings = self._analyze_indian_documents(document)
         all_findings.extend(indian_findings)
-        scores.append(("indian_doc", indian_score, 0.15))
+        scores.append(("indian_doc", indian_score, 0.13))
+
+        # --- QR Code Verification ---
+        qr_score, qr_findings = self._analyze_qr_codes(document)
+        all_findings.extend(qr_findings)
+        scores.append(("qr_verify", qr_score, 0.02))
 
         # Weighted combination
         final_score = sum(s * w for _, s, w in scores)
@@ -200,9 +214,12 @@ class MetadataAgent(BaseAgent):
         combined = f"{tool_lower} {producer}"
 
         if not tool:
-            # Missing tool is mildly suspicious for PDFs, neutral for images
+            # Missing tool — mildly suspicious for both PDFs and images.
+            # Legitimate documents have provenance (scanner software, PDF
+            # creator, etc.). Missing tool on an image that also lacks EXIF
+            # is more suspicious, but that's handled by EXIF analysis.
             is_image = document.metadata.get("source") == "image"
-            return (0.75 if is_image else 0.70), findings
+            return (0.65 if is_image else 0.60), findings
 
         # Classify the tool
         is_editing_tool = any(t in combined for t in EDITING_TOOLS)
@@ -297,7 +314,7 @@ class MetadataAgent(BaseAgent):
         modification = document.metadata.get("modification_date")
 
         if not creation and not modification:
-            return 0.7, findings  # Missing timestamps is mildly suspicious
+            return 0.60, findings  # Missing timestamps is suspicious
 
         # Parse dates
         creation_dt = self._parse_pdf_date(creation) if creation else None
@@ -383,12 +400,19 @@ class MetadataAgent(BaseAgent):
                         severity=0.3,
                     ))
                     return 0.70, findings
-                # No EXIF and no tool — suspicious for non-WhatsApp images
+                # No EXIF and no tool — suspicious for non-WhatsApp images.
+                # Legitimate scans have scanner EXIF. Legitimate screen captures
+                # or digital exports have creation tool metadata. Missing both
+                # suggests the image was processed to strip provenance.
                 findings.append(AgentFinding(
-                    description="Image has no EXIF data and no creation tool metadata.",
-                    severity=0.2,
+                    description=(
+                        "Image has no EXIF data and no creation tool metadata. "
+                        "Legitimate scans have scanner EXIF; stripped metadata "
+                        "is common in forged documents."
+                    ),
+                    severity=0.4,
                 ))
-                return 0.75, findings
+                return 0.55, findings
 
             # Check for inconsistent EXIF
             if "Make" in exif and "Model" in exif:
@@ -490,7 +514,24 @@ class MetadataAgent(BaseAgent):
 
         completeness = present / total if total > 0 else 0
 
-        if completeness < 0.4:
+        if completeness == 0:
+            # Zero metadata — no provenance at all. This is suspicious:
+            # legitimate scans have scanner EXIF, legitimate PDFs have creator.
+            findings.append(AgentFinding(
+                description=(
+                    f"Image has no EXIF data and no creation tool metadata."
+                ),
+                severity=0.5,
+            ))
+            findings.append(AgentFinding(
+                description=(
+                    f"Metadata completeness: {present}/{total} expected fields present "
+                    f"({completeness*100:.0f}%). Low metadata completeness is suspicious."
+                ),
+                severity=0.5,
+            ))
+            return 0.40, findings
+        elif completeness < 0.4:
             findings.append(AgentFinding(
                 description=(
                     f"Metadata completeness: {present}/{total} expected fields present "
@@ -498,7 +539,7 @@ class MetadataAgent(BaseAgent):
                 ),
                 severity=0.4,
             ))
-            return 0.6, findings
+            return 0.55, findings
         elif completeness < 0.7:
             findings.append(AgentFinding(
                 description=(
@@ -632,6 +673,205 @@ class MetadataAgent(BaseAgent):
                 score = min(score, 0.7)
 
         return score, findings
+
+    def _analyze_qr_codes(
+        self, document: Document
+    ) -> tuple[float, list[AgentFinding]]:
+        """
+        Scan for QR codes and cross-validate their content against OCR text.
+
+        For Aadhaar cards, the QR code contains XML with name, DOB, gender, address.
+        If QR data matches OCR text → strong authentic signal.
+        If QR data contradicts OCR text → forgery signal.
+        If no QR code on an Aadhaar → suspicious (all real Aadhaars have QR).
+        """
+        findings = []
+
+        if not HAS_PYZBAR or not document.pages:
+            return 1.0, findings
+
+        full_text = " ".join(document.ocr_text).lower()
+        is_aadhaar = ("aadhaar" in full_text or "uidai" in full_text
+                       or "unique identification" in full_text)
+
+        # Decode QR codes from all pages
+        qr_data_list = []
+        for page_img in document.pages:
+            try:
+                # Convert to grayscale for better QR detection
+                gray = cv2.cvtColor(page_img, cv2.COLOR_BGR2GRAY)
+                # Try multiple preprocessing approaches for QR detection
+                for img in [gray, cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]]:
+                    codes = decode_qr(img, symbols=[ZBarSymbol.QRCODE])
+                    for code in codes:
+                        try:
+                            data = code.data.decode("utf-8", errors="replace")
+                            qr_data_list.append(data)
+                        except Exception:
+                            pass
+                    if qr_data_list:
+                        break
+            except Exception as e:
+                logger.debug(f"QR decode error: {e}")
+
+        if not qr_data_list:
+            if is_aadhaar:
+                # All genuine Aadhaar cards have QR codes
+                findings.append(AgentFinding(
+                    description=(
+                        "No QR code detected on Aadhaar document. All genuine "
+                        "Aadhaar cards contain a QR code with encoded personal data."
+                    ),
+                    severity=0.5,
+                ))
+                return 0.60, findings
+            return 1.0, findings
+
+        # QR code found — analyze content
+        qr_text = " ".join(qr_data_list)
+        full_text_raw = " ".join(document.ocr_text)
+
+        if is_aadhaar:
+            return self._verify_aadhaar_qr(qr_text, full_text_raw, findings)
+
+        # Generic QR: just note its presence
+        findings.append(AgentFinding(
+            description=f"QR code detected with {len(qr_text)} chars of data.",
+            severity=0.0,
+        ))
+        return 1.0, findings
+
+    def _verify_aadhaar_qr(
+        self, qr_text: str, ocr_text: str, findings: list[AgentFinding]
+    ) -> tuple[float, list[AgentFinding]]:
+        """
+        Cross-validate Aadhaar QR code content with OCR text.
+        Aadhaar QR contains XML with uid, name, gender, dob, loc fields.
+        """
+        ocr_lower = ocr_text.lower()
+
+        # Try to parse as XML (Aadhaar QR format)
+        qr_fields = {}
+        try:
+            root = ET.fromstring(qr_text)
+            # Aadhaar QR XML has attributes like uid, name, gender, dob, loc, etc.
+            for attr in ["uid", "name", "gender", "dob", "loc", "vtc", "po",
+                          "dist", "state", "pc"]:
+                val = root.get(attr)
+                if val:
+                    qr_fields[attr] = val
+        except ET.ParseError:
+            # Not XML — might be newer Aadhaar format or compressed data
+            # Still valuable that a QR exists
+            findings.append(AgentFinding(
+                description=(
+                    "Aadhaar QR code detected but content is not standard XML format "
+                    "(may be newer secure QR or compressed). QR presence is a positive signal."
+                ),
+                severity=0.0,
+            ))
+            return 0.90, findings
+
+        if not qr_fields:
+            findings.append(AgentFinding(
+                description="Aadhaar QR code present but empty — unusual.",
+                severity=0.3,
+            ))
+            return 0.75, findings
+
+        # Cross-validate QR fields with OCR text
+        matches = 0
+        mismatches = 0
+        total_checked = 0
+
+        # Check name
+        if "name" in qr_fields:
+            total_checked += 1
+            name_parts = qr_fields["name"].lower().split()
+            name_match = sum(1 for part in name_parts if part in ocr_lower)
+            if name_match >= len(name_parts) * 0.5:
+                matches += 1
+            else:
+                mismatches += 1
+
+        # Check DOB
+        if "dob" in qr_fields:
+            total_checked += 1
+            dob = qr_fields["dob"]  # format: DD-MM-YYYY or DD/MM/YYYY
+            dob_clean = dob.replace("-", "").replace("/", "")
+            if dob in ocr_text or dob_clean in ocr_text.replace("-", "").replace("/", ""):
+                matches += 1
+            else:
+                mismatches += 1
+
+        # Check gender
+        if "gender" in qr_fields:
+            total_checked += 1
+            gender = qr_fields["gender"].lower()
+            if gender in ocr_lower or (gender == "m" and "male" in ocr_lower) or \
+               (gender == "f" and "female" in ocr_lower):
+                matches += 1
+            else:
+                mismatches += 1
+
+        # Check location/state
+        for loc_field in ["loc", "vtc", "dist", "state"]:
+            if loc_field in qr_fields:
+                total_checked += 1
+                loc_val = qr_fields[loc_field].lower()
+                if loc_val in ocr_lower:
+                    matches += 1
+                # Don't count as mismatch — OCR may not capture all location text
+
+        # Check UID last 4 digits
+        if "uid" in qr_fields:
+            total_checked += 1
+            uid = qr_fields["uid"]
+            last4 = uid[-4:] if len(uid) >= 4 else uid
+            if last4 in ocr_text:
+                matches += 1
+            else:
+                mismatches += 1
+
+        if total_checked == 0:
+            return 0.85, findings
+
+        match_ratio = matches / total_checked
+        mismatch_ratio = mismatches / total_checked
+
+        if mismatch_ratio > 0.4:
+            # Multiple fields don't match — strong forgery signal
+            findings.append(AgentFinding(
+                description=(
+                    f"Aadhaar QR data CONTRADICTS OCR text: {mismatches}/{total_checked} "
+                    f"fields mismatch (name, DOB, gender, location). QR data and visible "
+                    f"text should match on genuine Aadhaar cards."
+                ),
+                severity=0.9,
+            ))
+            return 0.15, findings
+        elif mismatch_ratio > 0.2:
+            findings.append(AgentFinding(
+                description=(
+                    f"Aadhaar QR partially matches OCR: {matches}/{total_checked} match, "
+                    f"{mismatches} mismatch. Possible tampering of visible fields."
+                ),
+                severity=0.6,
+            ))
+            return 0.40, findings
+        elif match_ratio > 0.5:
+            # Good match — strong authentic signal
+            findings.append(AgentFinding(
+                description=(
+                    f"Aadhaar QR code validates: {matches}/{total_checked} fields match "
+                    f"OCR text (name, DOB, gender, location). Strong authenticity signal."
+                ),
+                severity=0.0,
+            ))
+            return 1.0, findings
+        else:
+            # Partial match
+            return 0.85, findings
 
     def _is_messaging_app_image(self, document: Document) -> bool:
         """

@@ -2,15 +2,18 @@
 Visual Tamper Detection Agent
 
 Detection methods:
-1. Multi-scale ELA (Q90/Q75/Q50) — catches JPEG recompression, splicing
-2. Copy-move detection (ORB feature matching) — catches duplicated regions
-3. JPEG quantization table analysis — detects double compression
-4. Noise consistency analysis — catches spliced regions with different noise
+1. ManTraNet deep learning (pixel-level forgery localization) — primary detector
+2. Multi-scale ELA (Q90/Q75/Q50) — catches JPEG recompression, splicing
+3. Copy-move detection (ORB feature matching) — catches duplicated regions
+4. JPEG quantization table analysis — detects double compression
+5. Noise consistency analysis — catches spliced regions with different noise
 
 This agent catches: splicing, copy-move, image manipulation, JPEG recompression
 """
+import sys
 import time
 import io
+from pathlib import Path
 from typing import Optional
 from collections import Counter
 
@@ -18,19 +21,28 @@ import cv2
 import numpy as np
 from PIL import Image
 from loguru import logger
+import torch
 
 from certusdoc.agents.base import BaseAgent
 from certusdoc.models import Document, AgentResult, AgentFinding
 from certusdoc.utils.doc_detector import detect_document_type
 
+# ManTraNet model directory
+_MANTRANET_DIR = Path(__file__).resolve().parent.parent.parent / "models" / "mantranet"
+
 
 class VisualTamperAgent(BaseAgent):
-    """Detects visual tampering using ELA and optional deep learning models."""
+    """Detects visual tampering using ManTraNet deep learning + classical methods."""
 
     def __init__(self, trufor_model_path: Optional[str] = None):
         super().__init__(name="Visual Tamper Agent")
         self.trufor_model_path = trufor_model_path
         self.trufor_model = None
+        self.mantranet_model = None
+        self._mantranet_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        # Load ManTraNet (primary deep learning detector)
+        self._load_mantranet()
 
         if trufor_model_path:
             self._load_trufor(trufor_model_path)
@@ -46,6 +58,14 @@ class VisualTamperAgent(BaseAgent):
 
         for page_idx, page_img in enumerate(document.pages):
             sub_scores = {}
+
+            # --- ManTraNet Deep Learning (primary detector) ---
+            if self.mantranet_model is not None:
+                mtn_score, mtn_heatmap, mtn_findings = self._run_mantranet(
+                    page_img, page_idx
+                )
+                all_findings.extend(mtn_findings)
+                sub_scores["mantranet"] = mtn_score
 
             # --- Multi-Scale ELA Analysis ---
             ela_score, ela_heatmap, ela_findings = self._run_multiscale_ela(page_img, page_idx)
@@ -73,47 +93,75 @@ class VisualTamperAgent(BaseAgent):
             all_findings.extend(noise_findings)
             sub_scores["noise"] = noise_score
 
-            # --- TruFor (if available) ---
+            # --- TruFor (if available, takes priority over ManTraNet) ---
             if self.trufor_model is not None:
                 trufor_score, trufor_heatmap, trufor_findings = self._run_trufor(
                     page_img, page_idx
                 )
                 all_findings.extend(trufor_findings)
                 sub_scores["trufor"] = trufor_score
-                if ela_heatmap is not None and trufor_heatmap is not None:
-                    ela_heatmap = cv2.addWeighted(ela_heatmap, 0.4, trufor_heatmap, 0.6, 0)
 
             # === SCORING: severity-driven, not just weighted average ===
-            # The page score is capped by the WORST sub-score.
-            # A single strong detection signal should dominate.
             worst_sub = min(sub_scores.values())
 
-            if self.trufor_model is not None:
-                weighted = (0.15 * ela_score + 0.15 * copymove_score +
-                            0.10 * quant_score + 0.10 * noise_score +
+            # Weight allocation depends on which deep models are available
+            has_mantranet = "mantranet" in sub_scores
+            has_trufor = "trufor" in sub_scores
+
+            if has_trufor:
+                # TruFor takes priority if available
+                weighted = (0.10 * ela_score + 0.10 * copymove_score +
+                            0.05 * quant_score + 0.05 * noise_score +
+                            0.20 * sub_scores.get("mantranet", ela_score) +
                             0.50 * sub_scores["trufor"])
+            elif has_mantranet:
+                # ManTraNet is primary deep learning signal (50% weight)
+                weighted = (0.15 * ela_score + 0.15 * copymove_score +
+                            0.05 * quant_score + 0.15 * noise_score +
+                            0.50 * sub_scores["mantranet"])
             else:
+                # Classical only fallback
                 weighted = (0.30 * ela_score + 0.30 * copymove_score +
                             0.20 * quant_score + 0.20 * noise_score)
 
-            # The page score is the LESSER of the weighted avg and
-            # (worst_sub + 0.15) — so a strong signal from any method
-            # pulls the whole score down with tight coupling.
+            # The page score is capped by (worst_sub + 0.20) — strong signal
+            # from any method pulls the whole score down.
             ceiling_from_worst = worst_sub + 0.20
             page_score = min(weighted, ceiling_from_worst)
             page_score = max(0.0, min(1.0, page_score))
 
             page_scores.append(page_score)
 
+            # Combine heatmaps: prefer ManTraNet heatmap if available
+            best_heatmap = ela_heatmap
+            if has_mantranet and mtn_heatmap is not None:
+                if ela_heatmap is not None:
+                    # Blend ManTraNet (60%) with ELA (40%)
+                    mtn_resized = cv2.resize(
+                        mtn_heatmap, (ela_heatmap.shape[1], ela_heatmap.shape[0])
+                    )
+                    best_heatmap = cv2.addWeighted(
+                        ela_heatmap, 0.4, mtn_resized, 0.6, 0
+                    )
+                else:
+                    best_heatmap = mtn_heatmap
+
             if combined_heatmap is None:
-                combined_heatmap = ela_heatmap
+                combined_heatmap = best_heatmap
             else:
                 if page_score < page_scores[-2] if len(page_scores) > 1 else True:
-                    combined_heatmap = ela_heatmap
+                    combined_heatmap = best_heatmap
 
         final_score = min(page_scores) if page_scores else 1.0
         reliability = self._compute_reliability(document)
         elapsed_ms = (time.time() - start_time) * 1000
+
+        methods = ["multi_scale_ELA", "copy_move_ORB",
+                    "JPEG_quantization", "noise_consistency"]
+        if self.mantranet_model is not None:
+            methods.append("ManTraNet")
+        if self.trufor_model is not None:
+            methods.append("TruFor")
 
         logger.info(f"Visual agent complete: score={final_score:.3f}, "
                      f"reliability={reliability:.2f}, {len(all_findings)} findings, "
@@ -127,13 +175,175 @@ class VisualTamperAgent(BaseAgent):
             heatmap=combined_heatmap,
             processing_time_ms=elapsed_ms,
             details={
-                "methods_used": ["multi_scale_ELA", "copy_move_ORB",
-                                 "JPEG_quantization", "noise_consistency"]
-                                + (["TruFor"] if self.trufor_model else []),
+                "methods_used": methods,
                 "pages_analyzed": len(document.pages),
                 "per_page_scores": page_scores,
             }
         )
+
+    # ================================================================
+    # ManTraNet Deep Learning
+    # ================================================================
+
+    def _load_mantranet(self) -> None:
+        """Load ManTraNet pretrained model for pixel-level forgery detection."""
+        weight_path = _MANTRANET_DIR / "MantraNetv4.pt"
+        if not weight_path.exists():
+            logger.warning(f"ManTraNet weights not found at {weight_path} — skipping")
+            return
+
+        try:
+            # Add ManTraNet source dir to path for imports
+            mantranet_src = str(_MANTRANET_DIR)
+            if mantranet_src not in sys.path:
+                sys.path.insert(0, mantranet_src)
+
+            import os
+            # ManTraNet's IMTFE __init__ loads 'IMTFEv4.pt' from CWD —
+            # temporarily chdir so it finds the weights
+            orig_cwd = os.getcwd()
+            os.chdir(str(_MANTRANET_DIR))
+            try:
+                from mantranet import MantraNet
+                model = MantraNet(device=self._mantranet_device)
+                model.load_state_dict(
+                    torch.load(str(weight_path), map_location=self._mantranet_device,
+                               weights_only=False)
+                )
+            finally:
+                os.chdir(orig_cwd)
+
+            model.to(self._mantranet_device)
+            model.eval()
+            self.mantranet_model = model
+            logger.info(f"ManTraNet loaded on {self._mantranet_device}")
+        except Exception as e:
+            logger.error(f"Failed to load ManTraNet: {e}")
+            self.mantranet_model = None
+
+    def _run_mantranet(
+        self, image: np.ndarray, page_idx: int
+    ) -> tuple[float, Optional[np.ndarray], list[AgentFinding]]:
+        """
+        Run ManTraNet inference on a page image.
+
+        ManTraNet outputs a pixel-level forgery probability map (0=authentic, 1=forged).
+        We convert this to an integrity score (1=authentic, 0=forged) and extract findings.
+        """
+        findings = []
+
+        try:
+            rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+            # ManTraNet works best at reasonable resolution; resize if too large
+            h, w = rgb.shape[:2]
+            max_dim = 1024
+            scale = 1.0
+            if max(h, w) > max_dim:
+                scale = max_dim / max(h, w)
+                rgb = cv2.resize(rgb, None, fx=scale, fy=scale,
+                                 interpolation=cv2.INTER_AREA)
+
+            # Prepare tensor: (1, C, H, W) float32
+            tensor = torch.from_numpy(rgb).float()
+            tensor = tensor.unsqueeze(0)  # (1, H, W, C)
+            tensor = tensor.permute(0, 3, 1, 2)  # (1, C, H, W)
+            tensor = tensor.to(self._mantranet_device)
+
+            with torch.no_grad():
+                forgery_map = self.mantranet_model(tensor)  # (1, 1, H, W)
+
+            # Convert to numpy: values in [0, 1] where higher = more forged
+            fmap = forgery_map[0, 0].cpu().numpy()
+
+            # Compute score from forgery map statistics
+            mean_forgery = float(np.mean(fmap))
+            max_forgery = float(np.max(fmap))
+            # Ratio of pixels with forgery probability > 0.3
+            forged_ratio = float(np.sum(fmap > 0.3)) / fmap.size
+            # Ratio of pixels with strong forgery signal > 0.5
+            strong_ratio = float(np.sum(fmap > 0.5)) / fmap.size
+
+            # Convert forgery probability to integrity score
+            # Higher mean_forgery and forged_ratio → lower integrity
+            if strong_ratio > 0.05:
+                # Significant area with strong forgery signal
+                score = max(0.05, 0.25 - strong_ratio * 2)
+                findings.append(AgentFinding(
+                    description=(
+                        f"ManTraNet: {strong_ratio*100:.1f}% of image has strong "
+                        f"forgery signal (>0.5). Mean forgery: {mean_forgery:.3f}, "
+                        f"max: {max_forgery:.3f}. Deep learning model detects "
+                        f"pixel-level manipulation traces."
+                    ),
+                    severity=min(1.0, 0.7 + strong_ratio * 2),
+                    page=page_idx
+                ))
+            elif forged_ratio > 0.05:
+                # Moderate forgery signal
+                score = max(0.15, 0.45 - forged_ratio * 3)
+                findings.append(AgentFinding(
+                    description=(
+                        f"ManTraNet: {forged_ratio*100:.1f}% of image flagged "
+                        f"(>0.3 threshold). Mean: {mean_forgery:.3f}, "
+                        f"max: {max_forgery:.3f}. Possible manipulation detected."
+                    ),
+                    severity=min(0.9, 0.5 + forged_ratio * 3),
+                    page=page_idx
+                ))
+            elif forged_ratio > 0.035:
+                # Moderate-mild signal — above natural noise but below clear forgery.
+                # This range (3.5-5%) catches subtle edits with localized anomalies.
+                score = max(0.30, 0.55 - forged_ratio * 4)
+                findings.append(AgentFinding(
+                    description=(
+                        f"ManTraNet: elevated anomaly — {forged_ratio*100:.1f}% flagged "
+                        f"(>0.3 threshold). Mean: {mean_forgery:.3f}, max: {max_forgery:.3f}. "
+                        f"Possible localized manipulation."
+                    ),
+                    severity=min(0.6, forged_ratio * 6),
+                    page=page_idx
+                ))
+            elif forged_ratio > 0.02:
+                # Mild signal — could be compression artifacts
+                score = max(0.45, 0.70 - forged_ratio * 5)
+                findings.append(AgentFinding(
+                    description=(
+                        f"ManTraNet: minor anomaly — {forged_ratio*100:.1f}% flagged. "
+                        f"Mean: {mean_forgery:.3f}, max: {max_forgery:.3f}."
+                    ),
+                    severity=min(0.5, forged_ratio * 5),
+                    page=page_idx
+                ))
+            elif mean_forgery > 0.15:
+                # Elevated mean but diffuse — often JPEG artifacts
+                score = max(0.55, 0.85 - mean_forgery * 2)
+            else:
+                # Clean image
+                score = min(1.0, 0.90 + (1.0 - mean_forgery) * 0.10)
+
+            # Generate heatmap from forgery map
+            fmap_uint8 = np.clip(fmap * 255, 0, 255).astype(np.uint8)
+            # Resize back to original image size if we downscaled
+            if scale != 1.0:
+                fmap_uint8 = cv2.resize(
+                    fmap_uint8, (w, h), interpolation=cv2.INTER_LINEAR
+                )
+            heatmap = cv2.applyColorMap(fmap_uint8, cv2.COLORMAP_JET)
+            heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2GRAY)
+
+            logger.info(
+                f"  ManTraNet p{page_idx}: score={score:.3f}, "
+                f"mean_forgery={mean_forgery:.3f}, max={max_forgery:.3f}, "
+                f"forged_ratio={forged_ratio*100:.1f}%, "
+                f"strong_ratio={strong_ratio*100:.1f}%"
+            )
+
+            return score, heatmap, findings
+
+        except Exception as e:
+            logger.error(f"ManTraNet inference failed: {e}")
+            return 1.0, None, []
 
     # ================================================================
     # Multi-Scale ELA
@@ -573,7 +783,12 @@ class VisualTamperAgent(BaseAgent):
     def _analyze_noise_consistency(
         self, image: np.ndarray, page_idx: int, is_structured: bool = False
     ) -> tuple[float, list[AgentFinding]]:
-        """Check if noise levels are consistent across the image."""
+        """
+        Check if noise levels are consistent across the image using two methods:
+        1. Global Laplacian noise outlier detection (original)
+        2. Local median-filter residual analysis (catches subtle edits where a
+           region's noise texture differs from its surroundings)
+        """
         findings = []
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY).astype(np.float64)
 
@@ -591,18 +806,37 @@ class VisualTamperAgent(BaseAgent):
         if not noise_levels:
             return 1.0, findings
 
-        noise_values = [n[2] for n in noise_levels]
-        mean_noise = np.mean(noise_values)
-        std_noise = np.std(noise_values)
+        noise_values = np.array([n[2] for n in noise_levels])
 
-        # Structured docs (government IDs, certificates) need wider tolerance
-        # due to inherent design variation (logos, text, borders, blank areas)
-        sigma_thresh = 3.0 if is_structured else 2.5
+        # Use median + MAD instead of mean + std to avoid being skewed by
+        # blank/white regions. On documents with large blank areas, mean/std
+        # are dominated by zero-noise blocks, making text blocks look anomalous.
+        median_noise = float(np.median(noise_values))
+        mad = float(np.median(np.abs(noise_values - median_noise)))
 
-        anomalous_blocks = []
-        for x, y, noise in noise_levels:
-            if std_noise > 0 and abs(noise - mean_noise) > sigma_thresh * std_noise:
-                anomalous_blocks.append((x, y, noise))
+        # When median noise is very low (< 1.0), the image is mostly blank.
+        # On mostly-blank images, any content blocks (text, logos) will appear
+        # as noise outliers relative to the blank baseline — but this is normal
+        # document structure, not forgery. Skip outlier detection in this case.
+        if median_noise < 1.0:
+            anomalous_blocks = []
+        elif mad < 0.5:
+            # Very uniform noise — use std-based fallback with lenient threshold
+            mean_noise = float(np.mean(noise_values))
+            std_noise = float(np.std(noise_values))
+            sigma_thresh = 3.5 if is_structured else 3.0
+            anomalous_blocks = []
+            for x, y, noise in noise_levels:
+                if std_noise > 0 and abs(noise - mean_noise) > sigma_thresh * std_noise:
+                    anomalous_blocks.append((x, y, noise))
+        else:
+            # MAD-based outlier detection (robust to blank/content dichotomy)
+            sigma_thresh = 4.0 if is_structured else 3.5
+            mad_std = mad * 1.4826  # MAD to std conversion
+            anomalous_blocks = []
+            for x, y, noise in noise_levels:
+                if abs(noise - median_noise) > sigma_thresh * mad_std:
+                    anomalous_blocks.append((x, y, noise))
 
         anomaly_ratio = len(anomalous_blocks) / len(noise_levels)
 
@@ -630,7 +864,114 @@ class VisualTamperAgent(BaseAgent):
         else:
             score = 1.0
 
+        # === Local median-filter residual analysis ===
+        # Estimates per-block noise as std(pixel - median_filtered), then
+        # checks for blocks whose noise texture differs from local neighbors.
+        # Catches subtle edits where forged region noise differs from scan noise.
+        local_score = self._analyze_local_noise_texture(gray, page_idx, findings)
+        if local_score < score:
+            score = local_score
+
         return score, findings
+
+    def _analyze_local_noise_texture(
+        self, gray: np.ndarray, page_idx: int,
+        findings: list[AgentFinding],
+    ) -> float:
+        """
+        Compare each block's noise texture to its local neighborhood.
+        Edited regions have different noise from surrounding original content.
+        Uses median-filter residual as a robust noise estimator.
+        """
+        h, w = gray.shape
+        bs = 32
+        gray_u8 = np.clip(gray, 0, 255).astype(np.uint8)
+
+        rows = (h - bs) // bs
+        cols = (w - bs) // bs
+        if rows < 4 or cols < 4:
+            return 1.0
+
+        # Build noise grid and edge density grid
+        noise_grid = np.zeros((rows, cols), dtype=np.float64)
+        edge_grid = np.zeros((rows, cols), dtype=np.float64)
+        for r in range(rows):
+            for c in range(cols):
+                y, x = r * bs, c * bs
+                block = gray_u8[y:y+bs, x:x+bs]
+                med = cv2.medianBlur(block, 3)
+                noise_grid[r, c] = float(np.std(block.astype(np.float64) - med.astype(np.float64)))
+                edge_grid[r, c] = float(np.mean(cv2.Canny(block, 50, 150) > 0))
+
+        # Only analyze content blocks (edge density > 1%)
+        content_mask = edge_grid > 0.01
+        content_count = int(np.sum(content_mask))
+        # Need sufficient content blocks for meaningful analysis.
+        # Also skip if content is very sparse (< 5% of image) — the noise
+        # comparison is unreliable with few content blocks (e.g., synthetic
+        # images with just a few lines of text on white background).
+        total_blocks = rows * cols
+        if content_count < 16 or content_count < total_blocks * 0.05:
+            return 1.0
+
+        # For each content block, compare its noise to its local 5x5 neighborhood
+        pad = 2
+        local_anomaly_count = 0
+        local_anomalies = []
+
+        for r in range(rows):
+            for c in range(cols):
+                if not content_mask[r, c]:
+                    continue
+                # Get neighborhood content blocks
+                r1, r2 = max(0, r - pad), min(rows, r + pad + 1)
+                c1, c2 = max(0, c - pad), min(cols, c + pad + 1)
+                nbr_mask = content_mask[r1:r2, c1:c2]
+                if np.sum(nbr_mask) < 3:
+                    continue
+                nbr_noise = noise_grid[r1:r2, c1:c2][nbr_mask]
+                nbr_median = float(np.median(nbr_noise))
+                nbr_mad = float(np.median(np.abs(nbr_noise - nbr_median)))
+                if nbr_mad < 0.5:
+                    continue  # Very uniform neighborhood, skip
+
+                # Check if this block deviates from local neighborhood
+                deviation = abs(noise_grid[r, c] - nbr_median)
+                threshold = max(3.0 * nbr_mad * 1.4826, 2.0)  # MAD-based + min
+                if deviation > threshold:
+                    local_anomaly_count += 1
+                    local_anomalies.append((r * bs, c * bs, float(noise_grid[r, c]),
+                                            nbr_median, deviation))
+
+        local_ratio = local_anomaly_count / content_count
+
+        # Need minimum absolute count of anomalous blocks (not just ratio)
+        # to avoid false positives on sparse images with few content blocks
+        if local_ratio > 0.08 and local_anomaly_count >= 5:
+            score = max(0.15, 0.45 - local_ratio * 3)
+            findings.append(AgentFinding(
+                description=(
+                    f"Local noise texture anomaly: {local_anomaly_count}/{content_count} "
+                    f"content blocks differ from their local neighborhood "
+                    f"({local_ratio*100:.1f}%). Indicates region-level editing."
+                ),
+                severity=min(0.9, local_ratio * 5),
+                page=page_idx,
+            ))
+        elif local_ratio > 0.04 and local_anomaly_count >= 3:
+            score = max(0.45, 0.65 - local_ratio * 3)
+            findings.append(AgentFinding(
+                description=(
+                    f"Moderate noise texture variation: {local_anomaly_count}/{content_count} "
+                    f"blocks with local noise deviation ({local_ratio*100:.1f}%)."
+                ),
+                severity=min(0.6, local_ratio * 4),
+                page=page_idx,
+            ))
+        else:
+            score = 1.0
+
+        return score
 
     # ================================================================
     # Reliability
@@ -658,7 +999,7 @@ class VisualTamperAgent(BaseAgent):
     def _load_trufor(self, model_path: str) -> None:
         """Load TruFor model weights. Implement when weights are available."""
         logger.info(f"TruFor model loading from: {model_path}")
-        logger.warning("TruFor not yet integrated — using ELA-based detection only")
+        logger.warning("TruFor not yet integrated — using ManTraNet as deep learning backbone")
 
     def _run_trufor(
         self, image: np.ndarray, page_idx: int
