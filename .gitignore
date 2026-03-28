@@ -17,9 +17,6 @@ models/trufor/*.pth
 models/trufor/*.pt
 models/*.onnx
 
-# Data (large files)
-data/
-
 # IDE
 .vscode/
 .idea/
