@@ -41,8 +41,18 @@ class VisualTamperAgent(BaseAgent):
         self.mantranet_model = None
         self._mantranet_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        # Load ManTraNet (primary deep learning detector)
-        self._load_mantranet()
+        # ManTraNet is a deep learning model that is very slow on CPU (~4 min/image).
+        # Only load it if explicitly enabled via env var or if CUDA is available.
+        # Without this guard, every analysis would take 4+ minutes on CPU.
+        import os
+        _mantranet_enabled = (
+            os.environ.get("CERTUS_MANTRANET", "0") == "1"
+            or torch.cuda.is_available()
+        )
+        if _mantranet_enabled:
+            self._load_mantranet()
+        else:
+            logger.info("ManTraNet skipped (CPU-only mode). Set CERTUS_MANTRANET=1 to enable (requires GPU for fast inference).")
 
         if trufor_model_path:
             self._load_trufor(trufor_model_path)

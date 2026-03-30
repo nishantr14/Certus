@@ -23,9 +23,18 @@ from loguru import logger
 try:
     from pyzbar.pyzbar import decode as decode_qr, ZBarSymbol
     HAS_PYZBAR = True
-except ImportError:
+except (ImportError, OSError, Exception):
     HAS_PYZBAR = False
-    logger.warning("pyzbar not available — QR code verification disabled")
+    logger.warning(
+        "pyzbar not available (libzbar.dll missing on Windows). "
+        "Falling back to OpenCV QR detector. "
+        "Install with: choco install zbar  OR  pip install pyzbar and download "
+        "libzbar-64.dll to C:\\Windows\\System32\\"
+    )
+
+# OpenCV QR fallback — always available, less reliable than zbar for complex QR
+_CV2_QR_DETECTOR = cv2.QRCodeDetector()
+
 
 from certusdoc.agents.base import BaseAgent
 from certusdoc.models import Document, AgentResult, AgentFinding
@@ -110,6 +119,36 @@ INDIAN_DOC_PATTERNS = {
                       "transport", "rto", "valid from", "valid till"],
         "expected_tools": ["scanner", "government", "transport", "wkhtmltopdf",
                            "itext", "mparivahan", "vahan", "digilocker"],
+    },
+    "passport": {
+        # Indian passport: P<IND followed by surname<<given names (MRZ line 1)
+        # Line 2: passport number (alphanumeric, 9 chars) + checksum digits
+        # Forensic rationale: MRZ lines have ICAO 9303 checksum digits that must validate.
+        "regex": r"P[A-Z<]{43}|[A-Z0-9<]{9}\d[A-Z]{3}\d{7}[A-Z]\d{7}[A-Z0-9<]{14}\d",
+        "keywords": ["republic of india", "passport", "passport no", "nationality",
+                      "place of birth", "date of issue", "date of expiry",
+                      "given name", "surname"],
+        "expected_tools": ["scanner", "epson", "canon", "hp", "brother", "fujitsu",
+                           "government", "mea", "passport seva"],
+    },
+    "voter_id": {
+        # EPIC number: 3 uppercase letters + 7 digits (e.g., ABC1234567)
+        # Forensic rationale: EPIC format is strictly defined by Election Commission of India.
+        "regex": r"\b[A-Z]{3}\d{7}\b",
+        "keywords": ["election commission", "voter", "epic", "electors photo identity",
+                      "electoral roll", "constituency"],
+        "expected_tools": ["scanner", "epson", "canon", "hp", "brother", "fujitsu",
+                           "government", "eci", "election commission"],
+    },
+    "bank_statement": {
+        # IFSC code: 4 uppercase letters + 0 + 6 alphanumeric (e.g., HDFC0001234)
+        # Account number: 9-18 digits
+        # Forensic rationale: IFSC is a formally assigned code uniquely identifying bank branches.
+        "regex": r"\b[A-Z]{4}0[A-Z0-9]{6}\b|\b\d{9,18}\b",
+        "keywords": ["account statement", "ifsc", "account no", "account number",
+                      "savings account", "current account", "branch", "neft", "rtgs"],
+        "expected_tools": ["scanner", "epson", "canon", "hp", "microsoft", "word",
+                           "excel", "adobe", "chromium", "google chrome", "mozilla"],
     },
 }
 
@@ -378,16 +417,41 @@ class MetadataAgent(BaseAgent):
             if not exif:
                 # Check if this looks like a WhatsApp/messaging app image
                 if self._is_messaging_app_image(document):
-                    findings.append(AgentFinding(
-                        description=(
-                            "Image appears to be shared via WhatsApp or similar "
-                            "messaging app (no EXIF, JPEG, small file size, mobile "
-                            "dimensions). Missing metadata is expected — not a "
-                            "forgery indicator."
-                        ),
-                        severity=0.05,
-                    ))
-                    return 0.95, findings
+                    # Detect if content is a government document
+                    full_text = " ".join(document.ocr_text).lower()
+                    is_govt_doc = any(
+                        kw in full_text
+                        for kw in ["aadhaar", "uidai", "pan", "permanent account",
+                                   "driving licence", "driving license", "passport",
+                                   "government of india", "govt. of india"]
+                    )
+
+                    if is_govt_doc:
+                        findings.append(AgentFinding(
+                            description=(
+                                "Government/identity document appears to have been "
+                                "shared via WhatsApp or a messaging app (no EXIF, "
+                                "JPEG re-compressed, stripped metadata). Authentic "
+                                "government documents should be obtained directly "
+                                "from issuing authorities (UIDAI, DigiLocker, NSDL) "
+                                "— not forwarded via messaging apps. "
+                                "Provenance chain is completely broken. ELEVATED RISK."
+                            ),
+                            severity=0.75,
+                        ))
+                        return 0.30, findings
+                    else:
+                        findings.append(AgentFinding(
+                            description=(
+                                "Image appears to have been shared via WhatsApp or "
+                                "a messaging app (no EXIF, JPEG compression, no "
+                                "creation tool). All metadata has been stripped by "
+                                "the messaging platform — document provenance cannot "
+                                "be verified. Treat with caution."
+                            ),
+                            severity=0.40,
+                        ))
+                        return 0.50, findings
 
                 # Image with no EXIF — might be stripped (common in forgery)
                 tool = document.metadata.get("creation_tool", "")
@@ -413,6 +477,7 @@ class MetadataAgent(BaseAgent):
                     severity=0.4,
                 ))
                 return 0.55, findings
+
 
             # Check for inconsistent EXIF
             if "Make" in exif and "Model" in exif:
@@ -687,30 +752,46 @@ class MetadataAgent(BaseAgent):
         """
         findings = []
 
-        if not HAS_PYZBAR or not document.pages:
+        if not document.pages:
             return 1.0, findings
 
         full_text = " ".join(document.ocr_text).lower()
         is_aadhaar = ("aadhaar" in full_text or "uidai" in full_text
                        or "unique identification" in full_text)
 
-        # Decode QR codes from all pages
+        # Decode QR codes from all pages — try pyzbar first, CV2 as fallback.
+        # pyzbar (libzbar) is more reliable, especially for Aadhaar XML QR codes.
+        # cv2.QRCodeDetector is available on all platforms without extra DLL dependencies.
         qr_data_list = []
         for page_img in document.pages:
             try:
-                # Convert to grayscale for better QR detection
                 gray = cv2.cvtColor(page_img, cv2.COLOR_BGR2GRAY)
-                # Try multiple preprocessing approaches for QR detection
-                for img in [gray, cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]]:
-                    codes = decode_qr(img, symbols=[ZBarSymbol.QRCODE])
-                    for code in codes:
-                        try:
-                            data = code.data.decode("utf-8", errors="replace")
+                _, thresh = cv2.threshold(
+                    gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+                )
+
+                if HAS_PYZBAR:
+                    # Primary: pyzbar — handles dense/complex QR codes better
+                    for img_variant in [gray, thresh]:
+                        codes = decode_qr(img_variant, symbols=[ZBarSymbol.QRCODE])
+                        for code in codes:
+                            try:
+                                data = code.data.decode("utf-8", errors="replace")
+                                qr_data_list.append(data)
+                            except Exception:
+                                pass
+                        if qr_data_list:
+                            break
+
+                if not qr_data_list:
+                    # Fallback: OpenCV built-in QR detector (always available)
+                    for img_variant in [gray, thresh]:
+                        data, _, _ = _CV2_QR_DETECTOR.detectAndDecode(img_variant)
+                        if data:
                             qr_data_list.append(data)
-                        except Exception:
-                            pass
-                    if qr_data_list:
-                        break
+                            logger.debug("QR code decoded via OpenCV fallback")
+                            break
+
             except Exception as e:
                 logger.debug(f"QR decode error: {e}")
 
