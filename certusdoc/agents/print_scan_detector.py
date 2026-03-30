@@ -1,6 +1,11 @@
 """
 Print-Scan Attack Detector
 
+Exposes:
+  - PrintScanDetector class (used by visual_agent.py)
+  - analyze() module-level function (for direct use)
+
+
 Forensic rationale: A forger can bypass ELA and metadata checks by:
   1. Editing a document digitally (Photoshop etc.)
   2. Printing the edited document
@@ -410,3 +415,27 @@ def _detect_moire(gray: np.ndarray) -> tuple[float, list[str]]:
         signals.append(f"Mild interference pattern in bandpass signal (energy={bp_variance:.1f})")
 
     return float(np.clip(moire_score, 0.0, 1.0)), signals
+
+
+class PrintScanDetector:
+    """
+    Class wrapper around the module-level analyze() function.
+
+    Provides the class-based interface expected by visual_agent.py:
+        detector = PrintScanDetector()
+        result = detector.analyze(image)
+    """
+
+    def analyze(self, image: np.ndarray) -> dict:
+        """
+        Analyze an image for print-scan artifacts.
+
+        Delegates to the module-level analyze() function.
+
+        Args:
+            image: BGR image as numpy array.
+
+        Returns:
+            dict with keys: is_print_scan, confidence, signals, details.
+        """
+        return analyze(image)

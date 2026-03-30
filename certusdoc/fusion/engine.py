@@ -239,6 +239,7 @@ def compute_dis(
     dis = _apply_evidence_based_adjustments(
         dis, agent_results, active_agents,
         metadata_strongly_legit=bool(metadata_strongly_legit),
+        metadata_govt_provenance=bool(metadata_govt_provenance),
         is_whatsapp=is_whatsapp,
     )
 
@@ -460,6 +461,7 @@ def _apply_evidence_based_adjustments(
     agent_results: list[AgentResult],
     active_agents: list[AgentResult],
     metadata_strongly_legit: bool = False,
+    metadata_govt_provenance: bool = False,
     is_whatsapp: bool = False,
 ) -> float:
     """
@@ -560,13 +562,20 @@ def _apply_evidence_based_adjustments(
                 f"— strong govt metadata confirms legitimacy (multi-script baseline/spacing artefacts expected)"
             )
     elif splicing_score == 1:
-        if not metadata_strongly_legit:
+        # A SINGLE text indicator (baseline shift, spacing anomaly, or low-conf cluster)
+        # is extremely common in legitimate multi-script documents (Hindi+English Aadhaar,
+        # PAN, DL). It only becomes meaningful when metadata canNOT confirm legitimate
+        # origin. If metadata confirms a government tool (≥0.90), skip the cap entirely —
+        # the baseline/spacing variance is a rendering artifact, not tampering evidence.
+        legit_confirmed = metadata_strongly_legit or metadata_govt_provenance
+        if not legit_confirmed:
             cap = 0.58
             if hard_cap is None or cap < hard_cap:
                 hard_cap = cap
             logger.info("  Evidence: Single text splicing indicator → cap 0.58")
         else:
-            logger.info("  Evidence: Single text splicing indicator SKIPPED — strong govt metadata")
+            logger.info("  Evidence: Single text splicing indicator SKIPPED — govt metadata confirmed (≥0.90)")
+
 
     if hard_cap is not None and dis > hard_cap:
         dis = hard_cap

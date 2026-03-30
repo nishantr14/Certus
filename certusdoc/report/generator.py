@@ -252,9 +252,15 @@ def _get_risk_bg(risk: RiskLevel) -> str:
 
 
 def _array_to_rl_image(
-    arr: np.ndarray, max_width: float = 450
+    arr: np.ndarray, max_width: float = 450, max_height: float = 600
 ) -> Optional[RLImage]:
-    """Convert a numpy array to a reportlab Image object."""
+    """
+    Convert a numpy array to a reportlab Image object.
+
+    Scales the image to fit within both max_width and max_height,
+    preserving aspect ratio. This prevents 'too large on page' errors
+    when heatmaps are tall (portrait orientation).
+    """
     from PIL import Image as PILImage
 
     if arr is None:
@@ -270,5 +276,6 @@ def _array_to_rl_image(
     buf.seek(0)
 
     img_w, img_h = pil.size
-    scale = min(1.0, max_width / img_w)
+    # Scale to fit within both width and height constraints (uniform scale)
+    scale = min(1.0, max_width / img_w, max_height / img_h)
     return RLImage(buf, width=img_w * scale, height=img_h * scale)
