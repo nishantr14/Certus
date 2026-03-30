@@ -818,6 +818,27 @@ function showResults(data){
   setTimeout(()=>resultsDiv.scrollIntoView({behavior:'smooth',block:'start'}),300);
 }
 
+// Robust file download helper that works cross-origin
+function downloadBlob(blob, filename) {
+  // Method: Use FileReader to convert to data URL (bypasses cross-origin blob restrictions)
+  if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+    // IE/Edge legacy
+    window.navigator.msSaveOrOpenBlob(blob, filename);
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = function() {
+    const a = document.createElement('a');
+    a.href = reader.result;
+    a.download = filename;
+    a.style.cssText = 'position:fixed;left:-9999px;';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => document.body.removeChild(a), 500);
+  };
+  reader.readAsDataURL(blob);
+}
+
 // Export PDF — uses cached last report (no re-analysis)
 document.getElementById('btnExportPDF').addEventListener('click',async()=>{
   if(!lastResult)return;
@@ -828,9 +849,8 @@ document.getElementById('btnExportPDF').addEventListener('click',async()=>{
     const resp=await fetch(API+'/report/last');
     if(!resp.ok){const err=await resp.json().catch(()=>({detail:'Unknown error'}));throw new Error(err.detail)}
     const blob=await resp.blob();
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');a.href=url;a.download='certusdoc_report_'+lastResult.file_name+'.pdf';a.click();
-    URL.revokeObjectURL(url);
+    const fname='CertusDoc_Report_'+lastResult.file_name.replace(/[^a-zA-Z0-9._-]/g,'_')+'.pdf';
+    downloadBlob(new Blob([blob],{type:'application/pdf'}), fname);
   }catch(e){alert('PDF export failed: '+e.message)}
   finally{btn.textContent=origText;btn.style.opacity='1'}
 });
@@ -839,9 +859,8 @@ document.getElementById('btnExportPDF').addEventListener('click',async()=>{
 document.getElementById('btnExportJSON').addEventListener('click',()=>{
   if(!lastResult)return;
   const blob=new Blob([JSON.stringify(lastResult,null,2)],{type:'application/json'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');a.href=url;a.download='certusdoc_result.json';a.click();
-  URL.revokeObjectURL(url);
+  const fname='CertusDoc_Result_'+lastResult.file_name.replace(/[^a-zA-Z0-9._-]/g,'_')+'.json';
+  downloadBlob(blob, fname);
 });
 </script>
 </body>
