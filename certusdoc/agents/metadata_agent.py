@@ -115,6 +115,29 @@ INDIAN_DOC_PATTERNS = {
         "expected_tools": ["scanner", "government", "transport", "wkhtmltopdf",
                            "itext", "mparivahan", "vahan", "digilocker"],
     },
+    "passport": {
+        "regex": r"[A-Z][0-9]{7}",
+        "keywords": ["passport", "republic of india", "nationality", "date of birth",
+                      "date of issue", "date of expiry", "place of birth",
+                      "surname", "given name"],
+        "expected_tools": ["scanner", "epson", "canon", "hp", "brother", "fujitsu",
+                           "government", "digilocker"],
+    },
+    "voter_id": {
+        "regex": r"\b[A-Z]{3}\d{7}\b",
+        "keywords": ["election commission", "voter", "electoral", "elector",
+                      "epic", "polling station", "constituency", "electors photo"],
+        "expected_tools": ["scanner", "government", "election commission",
+                           "digilocker"],
+    },
+    "bank_statement": {
+        "regex": r"\b[A-Z]{4}0[A-Z0-9]{6}\b",
+        "keywords": ["bank", "account statement", "ifsc", "account number",
+                      "branch", "balance", "transaction", "debit", "credit",
+                      "neft", "rtgs", "imps", "passbook"],
+        "expected_tools": ["scanner", "microsoft", "word", "excel",
+                           "libreoffice", "wkhtmltopdf", "itext", "reportlab"],
+    },
 }
 
 
@@ -654,6 +677,42 @@ class MetadataAgent(BaseAgent):
                         severity=0.8,
                     ))
                     score = min(score, 0.3)
+
+        # Validate Passport MRZ format (2 lines x 44 chars, ICAO 9303)
+        if detected_type == "passport":
+            mrz_pattern = r"[A-Z0-9<]{44}"
+            mrz_lines = re.findall(mrz_pattern, full_text_raw)
+            if len(mrz_lines) >= 2:
+                findings.append(AgentFinding(
+                    description="Passport MRZ lines detected — format validation passed.",
+                    severity=0.0,
+                ))
+            elif any(kw in full_text for kw in ["machine readable", "mrz", "p<ind"]):
+                findings.append(AgentFinding(
+                    description="Passport document but MRZ not clearly readable by OCR.",
+                    severity=0.3,
+                ))
+                score = min(score, 0.7)
+
+        # Validate Voter ID EPIC format (3 letters + 7 digits)
+        if detected_type == "voter_id" and id_matches:
+            epic = id_matches[0]
+            if not re.match(r"^[A-Z]{3}\d{7}$", epic):
+                findings.append(AgentFinding(
+                    description=f"Voter ID EPIC number '{epic}' does not match expected format.",
+                    severity=0.6,
+                ))
+                score = min(score, 0.5)
+
+        # Validate Bank Statement IFSC (4 letters + 0 + 6 alphanumeric)
+        if detected_type == "bank_statement" and id_matches:
+            ifsc = id_matches[0]
+            if not re.match(r"^[A-Z]{4}0[A-Z0-9]{6}$", ifsc):
+                findings.append(AgentFinding(
+                    description=f"IFSC code '{ifsc}' does not match standard format.",
+                    severity=0.4,
+                ))
+                score = min(score, 0.6)
 
         # Cross-check creation tool — Indian govt docs should NOT be from editing/consumer software
         if tool:

@@ -112,10 +112,16 @@ class CertusDocPipeline:
         results = []
 
         with ThreadPoolExecutor(max_workers=len(self.agents)) as executor:
-            future_to_agent = {
-                executor.submit(agent.analyze, document): agent
-                for agent in self.agents
-            }
+            # Pass creation tool to visual agent for source-aware ELA thresholds
+            creation_tool = document.metadata.get("creation_tool")
+            future_to_agent = {}
+            for agent in self.agents:
+                if agent.name == "Visual Tamper Agent":
+                    future_to_agent[executor.submit(
+                        agent.analyze, document, doc_source_tool=creation_tool
+                    )] = agent
+                else:
+                    future_to_agent[executor.submit(agent.analyze, document)] = agent
 
             for future in as_completed(future_to_agent):
                 agent = future_to_agent[future]

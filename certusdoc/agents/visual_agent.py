@@ -16,6 +16,7 @@ import io
 from pathlib import Path
 from typing import Optional
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 
 import cv2
 import numpy as np
@@ -30,6 +31,11 @@ from certusdoc.agents.print_scan_detector import PrintScanDetector
 
 # ManTraNet model directory
 _MANTRANET_DIR = Path(__file__).resolve().parent.parent.parent / "models" / "mantranet"
+
+# ManTraNet on CPU is slow. When enabled, we downscale to 512px max and
+# enforce a timeout. Set MANTRANET_CPU_ENABLED = True to enable on CPU.
+MANTRANET_CPU_ENABLED = False
+MANTRANET_TIMEOUT_SECONDS = 30
 
 
 class VisualTamperAgent(BaseAgent):
@@ -77,16 +83,45 @@ class VisualTamperAgent(BaseAgent):
             except Exception as e:
                 logger.debug(f"Print-scan detection failed: {e}")
 
+        # Large PDF optimization: >3 pages → full analysis on pages 1, 2, last only
+        total_pages = len(document.pages)
+        if total_pages > 3:
+            full_analysis_pages = {0, 1, total_pages - 1}
+            all_findings.append(AgentFinding(
+                description=(
+                    f"Full forensic analysis performed on pages 1, 2, {total_pages}. "
+                    f"Remaining pages received partial analysis (JPEG quantization only)."
+                ),
+                severity=0.0,
+            ))
+        else:
+            full_analysis_pages = set(range(total_pages))
+
         for page_idx, page_img in enumerate(document.pages):
             sub_scores = {}
+            is_full_page = page_idx in full_analysis_pages
+
+            if not is_full_page:
+                # Partial analysis: JPEG quantization only (fastest method)
+                quant_score, quant_findings = self._analyze_jpeg_artifacts(
+                    page_img, document, page_idx
+                )
+                all_findings.extend(quant_findings)
+                sub_scores["jpeg_quant"] = quant_score
+                page_scores.append(quant_score)
+                continue
 
             # --- ManTraNet Deep Learning (primary detector) ---
             if self.mantranet_model is not None:
-                mtn_score, mtn_heatmap, mtn_findings = self._run_mantranet(
-                    page_img, page_idx
-                )
-                all_findings.extend(mtn_findings)
-                sub_scores["mantranet"] = mtn_score
+                is_cpu = self._mantranet_device.type == "cpu"
+                if is_cpu and not MANTRANET_CPU_ENABLED:
+                    logger.debug("ManTraNet skipped on CPU (MANTRANET_CPU_ENABLED=False)")
+                else:
+                    mtn_score, mtn_heatmap, mtn_findings = self._run_mantranet_with_timeout(
+                        page_img, page_idx, timeout=MANTRANET_TIMEOUT_SECONDS
+                    )
+                    all_findings.extend(mtn_findings)
+                    sub_scores["mantranet"] = mtn_score
 
             # --- Multi-Scale ELA Analysis ---
             ela_score, ela_heatmap, ela_findings = self._run_multiscale_ela(
@@ -248,6 +283,34 @@ class VisualTamperAgent(BaseAgent):
         except Exception as e:
             logger.error(f"Failed to load ManTraNet: {e}")
             self.mantranet_model = None
+
+    def _run_mantranet_with_timeout(
+        self, image: np.ndarray, page_idx: int, timeout: int = 30
+    ) -> tuple[float, Optional[np.ndarray], list[AgentFinding]]:
+        """Run ManTraNet in a thread with timeout. On CPU, downscales to 512px."""
+        is_cpu = self._mantranet_device.type == "cpu"
+        if is_cpu:
+            h, w = image.shape[:2]
+            if max(h, w) > 512:
+                scale = 512 / max(h, w)
+                image = cv2.resize(image, None, fx=scale, fy=scale,
+                                   interpolation=cv2.INTER_AREA)
+                logger.debug(f"ManTraNet CPU: downscaled to {image.shape[1]}x{image.shape[0]}")
+
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(self._run_mantranet, image, page_idx)
+            try:
+                return future.result(timeout=timeout)
+            except FuturesTimeoutError:
+                logger.warning(f"ManTraNet timed out after {timeout}s on page {page_idx}")
+                future.cancel()
+                return 1.0, None, [AgentFinding(
+                    description=f"ManTraNet analysis timed out after {timeout}s",
+                    severity=0.0, page=page_idx,
+                )]
+            except Exception as e:
+                logger.error(f"ManTraNet thread error: {e}")
+                return 1.0, None, []
 
     def _run_mantranet(
         self, image: np.ndarray, page_idx: int
