@@ -440,5 +440,46 @@ class TestWhatsAppThreshold:
         assert agent._is_messaging_app_image(doc, check_probable=True) is False
 
 
+class TestELASourceAware:
+    """ELA thresholds should be relaxed for known PDF generators."""
+
+    def test_ela_threshold_raised_for_wkhtmltopdf(self):
+        """wkhtmltopdf source should produce equal or higher ELA score (less suspicious)."""
+        agent = VisualTamperAgent()
+        doc = _make_clean_document()
+        page_img = doc.pages[0]
+        score_normal, _, _ = agent._run_multiscale_ela(page_img, 0)
+        score_wk, _, _ = agent._run_multiscale_ela(page_img, 0, doc_source_tool="wkhtmltopdf")
+        assert score_wk >= score_normal, (
+            f"wkhtmltopdf ELA score ({score_wk}) should be >= normal ({score_normal})"
+        )
+
+
+class TestPrintScanDetector:
+    def test_synthetic_halftone_detected(self):
+        from certusdoc.agents.print_scan_detector import PrintScanDetector
+        # Create synthetic halftone pattern
+        img = np.ones((512, 512), dtype=np.uint8) * 200
+        for y in range(0, 512, 6):
+            for x in range(0, 512, 6):
+                cv2.circle(img, (x + (y % 12) // 6 * 3, y), 1, 50, -1)
+        detector = PrintScanDetector()
+        result = detector.analyze(img)
+        assert "is_print_scan" in result
+        assert "confidence" in result
+        assert "signals" in result
+        assert isinstance(result["confidence"], float)
+        assert 0.0 <= result["confidence"] <= 1.0
+
+    def test_clean_digital_not_detected(self):
+        from certusdoc.agents.print_scan_detector import PrintScanDetector
+        img = np.ones((512, 512), dtype=np.uint8) * 255
+        cv2.rectangle(img, (100, 100), (400, 400), 0, 2)
+        cv2.putText(img, "DIGITAL", (150, 300), cv2.FONT_HERSHEY_SIMPLEX, 2, 0, 3)
+        detector = PrintScanDetector()
+        result = detector.analyze(img)
+        assert result["confidence"] < 0.7
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])

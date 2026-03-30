@@ -26,6 +26,7 @@ import torch
 from certusdoc.agents.base import BaseAgent
 from certusdoc.models import Document, AgentResult, AgentFinding
 from certusdoc.utils.doc_detector import detect_document_type
+from certusdoc.agents.print_scan_detector import PrintScanDetector
 
 # ManTraNet model directory
 _MANTRANET_DIR = Path(__file__).resolve().parent.parent.parent / "models" / "mantranet"
@@ -47,7 +48,9 @@ class VisualTamperAgent(BaseAgent):
         if trufor_model_path:
             self._load_trufor(trufor_model_path)
 
-    def analyze(self, document: Document) -> AgentResult:
+        self.print_scan_detector = PrintScanDetector()
+
+    def analyze(self, document: Document, doc_source_tool: str = None) -> AgentResult:
         start_time = time.time()
         all_findings = []
         page_scores = []
@@ -55,6 +58,24 @@ class VisualTamperAgent(BaseAgent):
 
         # Detect document type for adaptive thresholds
         doc_class = detect_document_type(document.ocr_text)
+
+        # Run print-scan detection on first page
+        print_scan_result = {"is_print_scan": False, "confidence": 0.0, "signals": []}
+        if document.pages:
+            first_page_gray = cv2.cvtColor(document.pages[0], cv2.COLOR_BGR2GRAY)
+            try:
+                print_scan_result = self.print_scan_detector.analyze(first_page_gray)
+                if print_scan_result["is_print_scan"]:
+                    all_findings.append(AgentFinding(
+                        description=(
+                            f"Print-scan attack suspected — digital artifact analysis "
+                            f"may be unreliable. Confidence: {print_scan_result['confidence']:.2f}. "
+                            f"Signals: {'; '.join(print_scan_result['signals'])}"
+                        ),
+                        severity=0.5,
+                    ))
+            except Exception as e:
+                logger.debug(f"Print-scan detection failed: {e}")
 
         for page_idx, page_img in enumerate(document.pages):
             sub_scores = {}
@@ -68,7 +89,9 @@ class VisualTamperAgent(BaseAgent):
                 sub_scores["mantranet"] = mtn_score
 
             # --- Multi-Scale ELA Analysis ---
-            ela_score, ela_heatmap, ela_findings = self._run_multiscale_ela(page_img, page_idx)
+            ela_score, ela_heatmap, ela_findings = self._run_multiscale_ela(
+                page_img, page_idx, doc_source_tool=doc_source_tool
+            )
             all_findings.extend(ela_findings)
             sub_scores["ela"] = ela_score
 
@@ -154,6 +177,11 @@ class VisualTamperAgent(BaseAgent):
 
         final_score = min(page_scores) if page_scores else 1.0
         reliability = self._compute_reliability(document)
+
+        if print_scan_result["is_print_scan"] and print_scan_result["confidence"] > 0.7:
+            reliability = max(0.1, reliability - 0.2)
+            logger.info(f"  Visual reliability reduced by 0.2 due to print-scan detection")
+
         elapsed_ms = (time.time() - start_time) * 1000
 
         methods = ["multi_scale_ELA", "copy_move_ORB",
@@ -235,9 +263,11 @@ class VisualTamperAgent(BaseAgent):
         try:
             rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-            # ManTraNet works best at reasonable resolution; resize if too large
+            # ManTraNet works best at reasonable resolution; resize if too large.
+            # 768px gives a good accuracy/speed trade-off (~44% fewer pixels
+            # than 1024px, roughly 2× faster inference with similar detection).
             h, w = rgb.shape[:2]
-            max_dim = 1024
+            max_dim = 768
             scale = 1.0
             if max(h, w) > max_dim:
                 scale = max_dim / max(h, w)
@@ -266,8 +296,15 @@ class VisualTamperAgent(BaseAgent):
 
             # Convert forgery probability to integrity score
             # Higher mean_forgery and forged_ratio → lower integrity
-            if strong_ratio > 0.05:
-                # Significant area with strong forgery signal
+            #
+            # Coloured government IDs (Aadhaar, PAN, DL) have vibrant sections
+            # (orange/teal headers, photos, QR codes) that produce localised
+            # hotspots in ManTraNet's forgery map even on authentic documents.
+            # These appear as high strong_ratio but LOW mean_forgery (<0.12).
+            # Real tampered images typically show high mean_forgery (>0.15)
+            # because the manipulation affects broad contiguous regions.
+            if strong_ratio > 0.05 and (strong_ratio > 0.12 or mean_forgery > 0.15):
+                # Widespread strong signal → genuine forgery indicator
                 score = max(0.05, 0.25 - strong_ratio * 2)
                 findings.append(AgentFinding(
                     description=(
@@ -277,6 +314,19 @@ class VisualTamperAgent(BaseAgent):
                         f"pixel-level manipulation traces."
                     ),
                     severity=min(1.0, 0.7 + strong_ratio * 2),
+                    page=page_idx
+                ))
+            elif strong_ratio > 0.05:
+                # Elevated strong_ratio but low mean → scattered hotspots in
+                # coloured document regions (headers, photos, QR), not splicing.
+                score = max(0.35, 0.65 - strong_ratio * 2)
+                findings.append(AgentFinding(
+                    description=(
+                        f"ManTraNet: {strong_ratio*100:.1f}% of image has localised "
+                        f"strong signal (>0.5) but mean forgery is low ({mean_forgery:.3f}). "
+                        f"Likely coloured document content (header/photo/QR), not tampering."
+                    ),
+                    severity=min(0.5, 0.3 + strong_ratio * 2),
                     page=page_idx
                 ))
             elif forged_ratio > 0.05:
@@ -363,7 +413,7 @@ class VisualTamperAgent(BaseAgent):
         return ela_map, float(np.mean(ela_map)), float(np.std(ela_map)), float(np.max(ela_map))
 
     def _run_multiscale_ela(
-        self, image: np.ndarray, page_idx: int
+        self, image: np.ndarray, page_idx: int, doc_source_tool: str = None
     ) -> tuple[float, np.ndarray, list[AgentFinding]]:
         """
         Multi-scale ELA at Q90, Q75, Q50.
@@ -372,6 +422,16 @@ class VisualTamperAgent(BaseAgent):
         """
         findings = []
         rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+        # Downsample for ELA — full 300 DPI images (2400×3100+) are slow to
+        # process three times. 1024px preserves enough detail for detecting
+        # recompression artefacts while cutting compute by ~6×.
+        ela_max_dim = 1024
+        h_ela, w_ela = rgb.shape[:2]
+        if max(h_ela, w_ela) > ela_max_dim:
+            ela_scale = ela_max_dim / max(h_ela, w_ela)
+            rgb = cv2.resize(rgb, None, fx=ela_scale, fy=ela_scale,
+                             interpolation=cv2.INTER_AREA)
 
         qualities = [90, 75, 50]
         ela_maps = []
@@ -383,6 +443,13 @@ class VisualTamperAgent(BaseAgent):
             ela_maps.append(ela_map)
 
             threshold = mean_ela + 2.0 * std_ela
+            # Raise ELA threshold for known PDF generators that produce
+            # JPEG artifacts mimicking tampering (wkhtmltopdf, fpdf, reportlab)
+            if doc_source_tool:
+                tool_lower = doc_source_tool.lower()
+                if any(t in tool_lower for t in ("wkhtmltopdf", "fpdf", "reportlab",
+                                                   "weasyprint", "prince", "puppeteer")):
+                    threshold *= 1.5
             mask = ela_map > threshold
             ratio = float(np.sum(mask)) / ela_map.size
             anomaly_masks.append(mask)
@@ -413,17 +480,42 @@ class VisualTamperAgent(BaseAgent):
                 page=page_idx
             ))
         elif persistent_2_ratio > 0.03:
-            # Likely tampering
-            score = max(0.1, 0.5 - persistent_2_ratio * 4)
-            findings.append(AgentFinding(
-                description=(
-                    f"Multi-scale ELA: {persistent_2_ratio*100:.1f}% of image flagged "
-                    f"across 2+ quality levels. Per-scale anomaly ratios: "
-                    f"{[f'{r*100:.1f}%' for r in anomaly_ratios]}"
-                ),
-                severity=min(1.0, 0.5 + persistent_2_ratio * 3),
-                page=page_idx
-            ))
+            # Check if the signal is uniform across all quality levels (compression
+            # artefact) vs concentrated (localised tampering).
+            # Uniform JPEG re-encoding produces similar anomaly ratios at every
+            # quality level; splicing produces uneven ratios because the spliced
+            # region was saved at a different quality than the background.
+            ratio_cv = (float(np.std(anomaly_ratios)) /
+                        (float(np.mean(anomaly_ratios)) + 1e-6))
+            is_uniform_compression = ratio_cv < 0.20 and persistent_3_ratio < 0.015
+
+            if is_uniform_compression:
+                # Uniform signal = whole-image JPEG recompression (e.g. scan, WhatsApp).
+                # This is expected for authentic printed/scanned govt IDs.
+                score = max(0.55, 0.85 - persistent_2_ratio * 3)
+                findings.append(AgentFinding(
+                    description=(
+                        f"Multi-scale ELA: {persistent_2_ratio*100:.1f}% of image flagged "
+                        f"across 2+ quality levels. Per-scale anomaly ratios: "
+                        f"{[f'{r*100:.1f}%' for r in anomaly_ratios]}. "
+                        f"Uniform ratios (CV={ratio_cv:.2f}) indicate whole-image JPEG "
+                        f"recompression, not localised tampering."
+                    ),
+                    severity=min(0.35, persistent_2_ratio * 4),
+                    page=page_idx
+                ))
+            else:
+                # Non-uniform signal = localised recompression → likely tampering
+                score = max(0.1, 0.5 - persistent_2_ratio * 4)
+                findings.append(AgentFinding(
+                    description=(
+                        f"Multi-scale ELA: {persistent_2_ratio*100:.1f}% of image flagged "
+                        f"across 2+ quality levels. Per-scale anomaly ratios: "
+                        f"{[f'{r*100:.1f}%' for r in anomaly_ratios]}"
+                    ),
+                    severity=min(1.0, 0.5 + persistent_2_ratio * 3),
+                    page=page_idx
+                ))
         elif max(anomaly_ratios) > 0.06:
             # Single-scale anomaly — possible but less certain
             worst_q_idx = anomaly_ratios.index(max(anomaly_ratios))
