@@ -271,6 +271,11 @@ class MetadataAgent(BaseAgent):
         # Check if document content suggests official/government document
         full_text = " ".join(document.ocr_text).lower()
         is_official = any(ind in full_text for ind in OFFICIAL_DOC_INDICATORS)
+        is_digilocker_screenshot = "powered by digilocker" in full_text or "digilocker verified" in full_text
+        
+        if is_digilocker_screenshot:
+            is_govt_tool = True
+            is_scan_tool = True
 
         # === Priority 1: Known government tools → always legitimate ===
         if is_govt_tool:
@@ -453,6 +458,19 @@ class MetadataAgent(BaseAgent):
                         ))
                         return 0.50, findings
 
+                # Check if it's a Digilocker screenshot
+                full_text = " ".join(document.ocr_text).lower()
+                is_digilocker_screenshot = "powered by digilocker" in full_text or "digilocker verified" in full_text
+                if is_digilocker_screenshot:
+                    findings.append(AgentFinding(
+                        description=(
+                            "DigiLocker Screenshot detected. Missing EXIF and tool metadata "
+                            "is expected for screenshots of digital lockers. Strong authentic signal."
+                        ),
+                        severity=0.0,
+                    ))
+                    return 0.95, findings
+
                 # Image with no EXIF — might be stripped (common in forgery)
                 tool = document.metadata.get("creation_tool", "")
                 if tool:
@@ -580,6 +598,12 @@ class MetadataAgent(BaseAgent):
         completeness = present / total if total > 0 else 0
 
         if completeness == 0:
+            full_text = " ".join(document.ocr_text).lower()
+            is_digilocker_screenshot = "powered by digilocker" in full_text or "digilocker verified" in full_text
+            if is_digilocker_screenshot:
+                # Bypass completeness check for digilocker screenshot
+                return 0.95, findings
+            
             # Zero metadata — no provenance at all. This is suspicious:
             # legitimate scans have scanner EXIF, legitimate PDFs have creator.
             findings.append(AgentFinding(
@@ -692,6 +716,42 @@ class MetadataAgent(BaseAgent):
                     ))
                     score = min(score, 0.3)
 
+        # Validate Passport MRZ format (2 lines x 44 chars, ICAO 9303)
+        if detected_type == "passport":
+            mrz_pattern = r"[A-Z0-9<]{44}"
+            mrz_lines = re.findall(mrz_pattern, full_text_raw)
+            if len(mrz_lines) >= 2:
+                findings.append(AgentFinding(
+                    description="Passport MRZ lines detected — format validation passed.",
+                    severity=0.0,
+                ))
+            elif any(kw in full_text for kw in ["machine readable", "mrz", "p<ind"]):
+                findings.append(AgentFinding(
+                    description="Passport document but MRZ not clearly readable by OCR.",
+                    severity=0.3,
+                ))
+                score = min(score, 0.7)
+
+        # Validate Voter ID EPIC format (3 letters + 7 digits)
+        if detected_type == "voter_id" and id_matches:
+            epic = id_matches[0]
+            if not re.match(r"^[A-Z]{3}\d{7}$", epic):
+                findings.append(AgentFinding(
+                    description=f"Voter ID EPIC number '{epic}' does not match expected format.",
+                    severity=0.6,
+                ))
+                score = min(score, 0.5)
+
+        # Validate Bank Statement IFSC (4 letters + 0 + 6 alphanumeric)
+        if detected_type == "bank_statement" and id_matches:
+            ifsc = id_matches[0]
+            if not re.match(r"^[A-Z]{4}0[A-Z0-9]{6}$", ifsc):
+                findings.append(AgentFinding(
+                    description=f"IFSC code '{ifsc}' does not match standard format.",
+                    severity=0.4,
+                ))
+                score = min(score, 0.6)
+
         # Cross-check creation tool — Indian govt docs should NOT be from editing/consumer software
         if tool:
             producer = (document.metadata.get("producer") or "").lower()
@@ -738,6 +798,24 @@ class MetadataAgent(BaseAgent):
                 score = min(score, 0.7)
 
         return score, findings
+
+    def _decode_qr_cv2(self, image: np.ndarray) -> list[str]:
+        """Fallback QR decoder using OpenCV's built-in QRCodeDetector."""
+        results = []
+        try:
+            detector = cv2.QRCodeDetector()
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if len(image.shape) == 3 else image
+            for img in [gray, cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]]:
+                retval, decoded_info, points, straight_qrcode = detector.detectAndDecodeMulti(img)
+                if retval and decoded_info:
+                    for data in decoded_info:
+                        if data:
+                            results.append(data)
+                if results:
+                    break
+        except Exception as e:
+            logger.debug(f"cv2 QR detection error: {e}")
+        return results
 
     def _analyze_qr_codes(
         self, document: Document
@@ -954,11 +1032,16 @@ class MetadataAgent(BaseAgent):
             # Partial match
             return 0.85, findings
 
-    def _is_messaging_app_image(self, document: Document) -> bool:
+    def _is_messaging_app_image(self, document: Document, check_probable: bool = False) -> bool:
         """
         Detect if an image was likely shared via WhatsApp or similar messaging apps.
         WhatsApp strips all EXIF, re-encodes as JPEG with aggressive compression,
         and resizes to mobile-friendly dimensions.
+
+        Args:
+            document: The document to check.
+            check_probable: If True, also detect "probable WhatsApp" for images
+                between 1MB and 2MB that match phone aspect ratios.
         """
         meta = document.metadata
         if meta.get("source") != "image":
@@ -978,20 +1061,31 @@ class MetadataAgent(BaseAgent):
         if meta.get("creation_tool"):
             return False
 
-        # Small file size (WhatsApp aggressive compression)
-        if document.file_size_bytes > 500_000:
-            return False
+        # Primary detection: file size under 1MB (WhatsApp aggressive compression)
+        if document.file_size_bytes <= 1_048_576:
+            # Mobile-typical dimensions
+            w = meta.get("width", 0)
+            h = meta.get("height", 0)
+            if w > 0 and h > 0:
+                if max(w, h) > 1920:
+                    return False
+                if min(w, h) < 200:
+                    return False
+            return True
 
-        # Mobile-typical dimensions
-        w = meta.get("width", 0)
-        h = meta.get("height", 0)
-        if w > 0 and h > 0:
-            if max(w, h) > 1920:
-                return False
-            if min(w, h) < 200:
-                return False
+        # Secondary detection (probable WhatsApp): 1MB–2MB with phone aspect ratio
+        if check_probable and document.file_size_bytes <= 2_097_152:
+            w = meta.get("width", 0)
+            h = meta.get("height", 0)
+            if w > 0 and h > 0:
+                ratio = max(w, h) / min(w, h)
+                # Common phone aspect ratios: 16:9, 4:3, 19.5:9, 18:9, 20:9
+                phone_ratios = [16 / 9, 4 / 3, 19.5 / 9, 18 / 9, 20 / 9]
+                tolerance = 0.15
+                if any(abs(ratio - r) <= tolerance for r in phone_ratios):
+                    return True
 
-        return True
+        return False
 
     def _validate_aadhaar_checksum(self, number: str) -> bool:
         """Validate Aadhaar number using Verhoeff algorithm."""

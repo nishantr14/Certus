@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc -l /c/Certus/certusdoc/certusdoc/agents/*.py /c/Certus/certusdoc/certusdoc/pipeline.py /c/Certus/certusdoc/certusdoc/models.py /c/Certus/certusdoc/certusdoc/ingestion/ingest.py /c/Certus/certusdoc/certusdoc/fusion/engine.py /c/Certus/certusdoc/certusdoc/report/generator.py /c/Certus/certusdoc/app.py /c/Certus/certusdoc/api.py)"
+    ]
+  }
+}
