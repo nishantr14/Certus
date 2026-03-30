@@ -922,11 +922,16 @@ class MetadataAgent(BaseAgent):
             # Partial match
             return 0.85, findings
 
-    def _is_messaging_app_image(self, document: Document) -> bool:
+    def _is_messaging_app_image(self, document: Document, check_probable: bool = False) -> bool:
         """
         Detect if an image was likely shared via WhatsApp or similar messaging apps.
         WhatsApp strips all EXIF, re-encodes as JPEG with aggressive compression,
         and resizes to mobile-friendly dimensions.
+
+        Args:
+            document: The document to check.
+            check_probable: If True, also detect "probable WhatsApp" for images
+                between 1MB and 2MB that match phone aspect ratios.
         """
         meta = document.metadata
         if meta.get("source") != "image":
@@ -946,20 +951,31 @@ class MetadataAgent(BaseAgent):
         if meta.get("creation_tool"):
             return False
 
-        # Small file size (WhatsApp aggressive compression)
-        if document.file_size_bytes > 500_000:
-            return False
+        # Primary detection: file size under 1MB (WhatsApp aggressive compression)
+        if document.file_size_bytes <= 1_048_576:
+            # Mobile-typical dimensions
+            w = meta.get("width", 0)
+            h = meta.get("height", 0)
+            if w > 0 and h > 0:
+                if max(w, h) > 1920:
+                    return False
+                if min(w, h) < 200:
+                    return False
+            return True
 
-        # Mobile-typical dimensions
-        w = meta.get("width", 0)
-        h = meta.get("height", 0)
-        if w > 0 and h > 0:
-            if max(w, h) > 1920:
-                return False
-            if min(w, h) < 200:
-                return False
+        # Secondary detection (probable WhatsApp): 1MB–2MB with phone aspect ratio
+        if check_probable and document.file_size_bytes <= 2_097_152:
+            w = meta.get("width", 0)
+            h = meta.get("height", 0)
+            if w > 0 and h > 0:
+                ratio = max(w, h) / min(w, h)
+                # Common phone aspect ratios: 16:9, 4:3, 19.5:9, 18:9, 20:9
+                phone_ratios = [16 / 9, 4 / 3, 19.5 / 9, 18 / 9, 20 / 9]
+                tolerance = 0.15
+                if any(abs(ratio - r) <= tolerance for r in phone_ratios):
+                    return True
 
-        return True
+        return False
 
     def _validate_aadhaar_checksum(self, number: str) -> bool:
         """Validate Aadhaar number using Verhoeff algorithm."""

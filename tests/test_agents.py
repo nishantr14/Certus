@@ -394,5 +394,51 @@ class TestQRCodeFallback:
         assert isinstance(result, AgentResult)
 
 
+class TestWhatsAppThreshold:
+    def test_800kb_jpeg_no_exif_is_whatsapp(self):
+        """800KB JPEG with no EXIF should be detected as WhatsApp (under new 1MB threshold)."""
+        from certusdoc.agents.metadata_agent import MetadataAgent
+        agent = MetadataAgent()
+        doc = _make_clean_document()
+        doc.file_size_bytes = 800_000
+        doc.original_format = "jpg"
+        doc.metadata = {
+            "source": "image", "format": "JPEG",
+            "creation_tool": None, "exif": {},
+            "width": 1200, "height": 1600,
+        }
+        assert agent._is_messaging_app_image(doc) is True
+
+    def test_1_5mb_jpeg_phone_ratio_is_probable_whatsapp(self):
+        """1.5MB JPEG, no EXIF, 9:16 ratio should be probable WhatsApp."""
+        from certusdoc.agents.metadata_agent import MetadataAgent
+        agent = MetadataAgent()
+        doc = _make_clean_document()
+        doc.file_size_bytes = 1_500_000
+        doc.original_format = "jpg"
+        doc.metadata = {
+            "source": "image", "format": "JPEG",
+            "creation_tool": None, "exif": {},
+            "width": 1080, "height": 1920,
+        }
+        assert agent._is_messaging_app_image(doc) is False  # Without check_probable
+        assert agent._is_messaging_app_image(doc, check_probable=True) is True
+
+    def test_3mb_jpeg_not_whatsapp(self):
+        """3MB is too large even with phone ratio."""
+        from certusdoc.agents.metadata_agent import MetadataAgent
+        agent = MetadataAgent()
+        doc = _make_clean_document()
+        doc.file_size_bytes = 3_000_000
+        doc.original_format = "jpg"
+        doc.metadata = {
+            "source": "image", "format": "JPEG",
+            "creation_tool": None, "exif": {},
+            "width": 1080, "height": 1920,
+        }
+        assert agent._is_messaging_app_image(doc) is False
+        assert agent._is_messaging_app_image(doc, check_probable=True) is False
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])

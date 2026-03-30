@@ -208,12 +208,16 @@ def compute_dis(
     # WhatsApp-specific scoring adjustments
     if is_whatsapp:
         # WhatsApp compression introduces visual artifacts (ELA/noise anomalies).
-        # If text agent is clean (>= 0.70), trust it more and soften visual.
+        # If text agent is clean/acceptable (>= 0.65), trust it more and soften visual.
         if visual_result and text_result:
-            if text_result.score >= 0.70 and visual_result.score >= 0.45:
-                # Text is clean + visual is only mildly flagging → likely compression
-                # artifacts, not forgery. Ensure DIS stays above 0.60.
-                wa_floor = 0.60
+            if text_result.score >= 0.65 and visual_result.score >= 0.40:
+                # Text is acceptable + visual is only mildly flagging → likely compression
+                # artifacts on a real document. Ensure DIS reaches Authentic range if no hard indicators.
+                if not text_has_hard_indicators:
+                    wa_floor = 0.86
+                else:
+                    wa_floor = 0.60
+                    
                 if dis < wa_floor:
                     logger.info(f"  WhatsApp clean floor: DIS {dis:.3f} → {wa_floor:.3f} "
                                  f"(text={text_result.score:.3f} clean, visual={visual_result.score:.3f} mild)")
@@ -235,6 +239,7 @@ def compute_dis(
     dis = _apply_evidence_based_adjustments(
         dis, agent_results, active_agents,
         metadata_strongly_legit=bool(metadata_strongly_legit),
+        is_whatsapp=is_whatsapp,
     )
 
     # Re-apply floors after evidence scoring (evidence penalties may have
@@ -243,8 +248,11 @@ def compute_dis(
         logger.info(f"  Government provenance floor re-applied: DIS {dis:.3f} → 0.750")
         dis = 0.75
     if is_whatsapp and visual_result and text_result:
-        if text_result.score >= 0.70 and visual_result.score >= 0.45 and dis < 0.60:
-            logger.info(f"  WhatsApp clean floor re-applied: DIS {dis:.3f} → 0.600")
+        if text_result.score >= 0.65 and visual_result.score >= 0.40 and not text_has_hard_indicators and dis < 0.86:
+            logger.info(f"  WhatsApp clean floor re-applied: DIS {dis:.3f} → 0.860")
+            dis = 0.86
+        elif text_result.score >= 0.65 and visual_result.score >= 0.40 and dis < 0.60:
+            logger.info(f"  WhatsApp clean floor (hard indicators) re-applied: DIS {dis:.3f} → 0.600")
             dis = 0.60
     if visual_meta_override and dis < 0.45:
         logger.info(f"  Strong metadata floor re-applied: DIS {dis:.3f} → 0.450")
@@ -314,7 +322,7 @@ def _is_whatsapp_image(document: "Document | None") -> bool:
         return False
 
     # Small file size (WhatsApp aggressive compression)
-    if document.file_size_bytes > 500_000:
+    if document.file_size_bytes > 1_048_576:
         return False
 
     # Mobile-typical dimensions: WhatsApp caps at ~1600px on longest side
@@ -452,6 +460,7 @@ def _apply_evidence_based_adjustments(
     agent_results: list[AgentResult],
     active_agents: list[AgentResult],
     metadata_strongly_legit: bool = False,
+    is_whatsapp: bool = False,
 ) -> float:
     """
     Scan agent findings for evidence-based signals that should override
@@ -513,6 +522,52 @@ def _apply_evidence_based_adjustments(
                 hard_cap = cap
         logger.info("  Evidence: confirmed multi-scale ELA → cap 0.30")
 
+    # Verhoeff checksum failure on non-government tool
+    if "fails verhoeff checksum validation" in findings_joined:
+        cap = 0.20
+        if hard_cap is None or cap < hard_cap:
+            hard_cap = cap
+        logger.info("  Evidence: Aadhaar fails Verhoeff → cap 0.20")
+
+    # No QR on Aadhaar
+    if "no qr code detected on aadhaar" in findings_joined:
+        if not is_whatsapp:
+            cap = 0.45
+            if hard_cap is None or cap < hard_cap:
+                hard_cap = cap
+            logger.info("  Evidence: No QR on Aadhaar → cap 0.45")
+        else:
+            logger.info("  Evidence: No QR on Aadhaar SKIPPED — WhatsApp image")
+
+    # Text Splicing / Digital tampering
+    # NOTE: These indicators are natural artefacts in multi-script (Hindi+English)
+    # government documents and scanned IDs. Skip the cap when strong government
+    # metadata (≥0.95) confirms legitimacy — same exemption as ManTraNet.
+    has_text_cluster = "low-confidence text cluster" in findings_joined
+    has_baseline = "baseline misalignment" in findings_joined
+    has_spacing = "character spacing anomaly" in findings_joined
+
+    splicing_score = int(has_text_cluster) + int(has_baseline) + int(has_spacing)
+    if splicing_score >= 2:
+        if not metadata_strongly_legit:
+            cap = 0.38
+            if hard_cap is None or cap < hard_cap:
+                hard_cap = cap
+            logger.info(f"  Evidence: Multiple text splicing indicators ({splicing_score}/3) → cap 0.38")
+        else:
+            logger.info(
+                f"  Evidence: Text splicing indicators ({splicing_score}/3) SKIPPED "
+                f"— strong govt metadata confirms legitimacy (multi-script baseline/spacing artefacts expected)"
+            )
+    elif splicing_score == 1:
+        if not metadata_strongly_legit:
+            cap = 0.58
+            if hard_cap is None or cap < hard_cap:
+                hard_cap = cap
+            logger.info("  Evidence: Single text splicing indicator → cap 0.58")
+        else:
+            logger.info("  Evidence: Single text splicing indicator SKIPPED — strong govt metadata")
+
     if hard_cap is not None and dis > hard_cap:
         dis = hard_cap
 
@@ -526,14 +581,6 @@ def _apply_evidence_based_adjustments(
         soft_penalty += 0.04
     if "mantranet" in findings_joined and "minor anomaly" in findings_joined:
         soft_penalty += 0.02
-
-    # Verhoeff checksum failure on non-government tool
-    if "fails verhoeff checksum validation" in findings_joined:
-        soft_penalty += 0.08
-
-    # No QR on Aadhaar
-    if "no qr code detected on aadhaar" in findings_joined:
-        soft_penalty += 0.05
 
     if soft_penalty > 0:
         dis = max(0.0, dis - soft_penalty)
@@ -549,6 +596,10 @@ def _apply_evidence_based_adjustments(
     # WhatsApp image correctly identified (not suspicious)
     if "messaging app" in findings_joined and "not a forgery indicator" in findings_joined:
         auth_boost += 0.02
+        
+    # DigiLocker Screenshot detected
+    if "digilocker screenshot" in findings_joined:
+        auth_boost += 0.15
 
     # Government tool confirmed
     if any(r.score >= 0.90 for r in active_agents
