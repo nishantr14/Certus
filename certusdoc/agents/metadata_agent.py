@@ -25,7 +25,11 @@ try:
     HAS_PYZBAR = True
 except ImportError:
     HAS_PYZBAR = False
-    logger.warning("pyzbar not available — QR code verification disabled")
+    logger.warning(
+        "pyzbar not available — falling back to cv2 QR detector. "
+        "For better QR support install pyzbar: pip install pyzbar. "
+        "On Windows you also need the zbar DLL: https://sourceforge.net/projects/zbar/"
+    )
 
 from certusdoc.agents.base import BaseAgent
 from certusdoc.models import Document, AgentResult, AgentFinding
@@ -232,6 +236,11 @@ class MetadataAgent(BaseAgent):
         # Check if document content suggests official/government document
         full_text = " ".join(document.ocr_text).lower()
         is_official = any(ind in full_text for ind in OFFICIAL_DOC_INDICATORS)
+        is_digilocker_screenshot = "powered by digilocker" in full_text or "digilocker verified" in full_text
+        
+        if is_digilocker_screenshot:
+            is_govt_tool = True
+            is_scan_tool = True
 
         # === Priority 1: Known government tools → always legitimate ===
         if is_govt_tool:
@@ -389,6 +398,19 @@ class MetadataAgent(BaseAgent):
                     ))
                     return 0.95, findings
 
+                # Check if it's a Digilocker screenshot
+                full_text = " ".join(document.ocr_text).lower()
+                is_digilocker_screenshot = "powered by digilocker" in full_text or "digilocker verified" in full_text
+                if is_digilocker_screenshot:
+                    findings.append(AgentFinding(
+                        description=(
+                            "DigiLocker Screenshot detected. Missing EXIF and tool metadata "
+                            "is expected for screenshots of digital lockers. Strong authentic signal."
+                        ),
+                        severity=0.0,
+                    ))
+                    return 0.95, findings
+
                 # Image with no EXIF — might be stripped (common in forgery)
                 tool = document.metadata.get("creation_tool", "")
                 if tool:
@@ -515,6 +537,12 @@ class MetadataAgent(BaseAgent):
         completeness = present / total if total > 0 else 0
 
         if completeness == 0:
+            full_text = " ".join(document.ocr_text).lower()
+            is_digilocker_screenshot = "powered by digilocker" in full_text or "digilocker verified" in full_text
+            if is_digilocker_screenshot:
+                # Bypass completeness check for digilocker screenshot
+                return 0.95, findings
+            
             # Zero metadata — no provenance at all. This is suspicious:
             # legitimate scans have scanner EXIF, legitimate PDFs have creator.
             findings.append(AgentFinding(
@@ -674,6 +702,24 @@ class MetadataAgent(BaseAgent):
 
         return score, findings
 
+    def _decode_qr_cv2(self, image: np.ndarray) -> list[str]:
+        """Fallback QR decoder using OpenCV's built-in QRCodeDetector."""
+        results = []
+        try:
+            detector = cv2.QRCodeDetector()
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if len(image.shape) == 3 else image
+            for img in [gray, cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]]:
+                retval, decoded_info, points, straight_qrcode = detector.detectAndDecodeMulti(img)
+                if retval and decoded_info:
+                    for data in decoded_info:
+                        if data:
+                            results.append(data)
+                if results:
+                    break
+        except Exception as e:
+            logger.debug(f"cv2 QR detection error: {e}")
+        return results
+
     def _analyze_qr_codes(
         self, document: Document
     ) -> tuple[float, list[AgentFinding]]:
@@ -687,7 +733,7 @@ class MetadataAgent(BaseAgent):
         """
         findings = []
 
-        if not HAS_PYZBAR or not document.pages:
+        if not document.pages:
             return 1.0, findings
 
         full_text = " ".join(document.ocr_text).lower()
@@ -698,19 +744,22 @@ class MetadataAgent(BaseAgent):
         qr_data_list = []
         for page_img in document.pages:
             try:
-                # Convert to grayscale for better QR detection
-                gray = cv2.cvtColor(page_img, cv2.COLOR_BGR2GRAY)
-                # Try multiple preprocessing approaches for QR detection
-                for img in [gray, cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]]:
-                    codes = decode_qr(img, symbols=[ZBarSymbol.QRCODE])
-                    for code in codes:
-                        try:
-                            data = code.data.decode("utf-8", errors="replace")
-                            qr_data_list.append(data)
-                        except Exception:
-                            pass
-                    if qr_data_list:
-                        break
+                if HAS_PYZBAR:
+                    # Convert to grayscale for better QR detection
+                    gray = cv2.cvtColor(page_img, cv2.COLOR_BGR2GRAY)
+                    # Try multiple preprocessing approaches for QR detection
+                    for img in [gray, cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]]:
+                        codes = decode_qr(img, symbols=[ZBarSymbol.QRCODE])
+                        for code in codes:
+                            try:
+                                data = code.data.decode("utf-8", errors="replace")
+                                qr_data_list.append(data)
+                            except Exception:
+                                pass
+                        if qr_data_list:
+                            break
+                else:
+                    qr_data_list.extend(self._decode_qr_cv2(page_img))
             except Exception as e:
                 logger.debug(f"QR decode error: {e}")
 

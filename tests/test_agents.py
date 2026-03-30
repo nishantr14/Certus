@@ -378,5 +378,21 @@ class TestGovernmentProvenanceOverride:
         )
 
 
+class TestQRCodeFallback:
+    def test_cv2_qr_detector_returns_empty_on_no_qr(self):
+        from certusdoc.agents.metadata_agent import MetadataAgent
+        agent = MetadataAgent()
+        white_img = np.ones((500, 500, 3), dtype=np.uint8) * 255
+        result = agent._decode_qr_cv2(white_img)
+        assert result == []
+
+    def test_qr_analysis_does_not_crash_without_pyzbar(self):
+        from certusdoc.agents.metadata_agent import MetadataAgent
+        agent = MetadataAgent()
+        doc = _make_clean_document()
+        result = agent.analyze(doc)
+        assert isinstance(result, AgentResult)
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])
